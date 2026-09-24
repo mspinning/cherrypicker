@@ -1,0 +1,89 @@
+{
+  "realm": "crm",
+  "enabled": true,
+  "displayName": "AI First CRM",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "bruteForceProtected": true,
+  "passwordPolicy": "length(8) and notUsername and notEmail",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Standard CRM user"
+      },
+      {
+        "name": "admin",
+        "description": "CRM administrator"
+      },
+      {
+        "name": "default-roles-crm",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "offline_access",
+            "uma_authorization",
+            "user"
+          ],
+          "client": {
+            "account": [
+              "view-profile",
+              "manage-account"
+            ]
+          }
+        }
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline-access}"
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}"
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-crm"
+  },
+  "clients": [
+    {
+      "clientId": "crm-backend",
+      "name": "CRM Backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CRM_BACKEND_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "attributes": {
+        "access.token.lifespan": "300"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-crm-backend",
+      "enabled": true,
+      "serviceAccountClientId": "crm-backend",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      }
+    }
+  ]
+}
