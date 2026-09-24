@@ -1,0 +1,174 @@
+@use 'mixins' as *;
+
+:host {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+}
+
+:host(.compact) {
+  width: 100%;
+  max-width: 480px;
+}
+
+// Springy press feedback shared by all buttons here
+.round,
+.pill {
+  transition:
+    transform 0.25s cubic-bezier(0.2, 1.5, 0.4, 1),
+    background-color 0.2s,
+    border-color 0.2s;
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+@media (hover: hover) {
+  .round:hover,
+  .pill:hover {
+    transform: translateY(-3px);
+  }
+
+  .round:active,
+  .pill:active {
+    transform: scale(0.92);
+  }
+}
+
+// ---- Decide ----
+
+.actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+
+  :host(.compact) & {
+    align-items: center;
+    gap: 26px;
+  }
+
+  @include desktop-short {
+    align-items: center;
+  }
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.action--minor {
+  padding-top: 10px;
+
+  :host(.compact) & {
+    padding-top: 0;
+  }
+
+  @include desktop-short {
+    padding-top: 0;
+  }
+}
+
+.action__label {
+  font-size: 13px;
+  color: var(--ink-muted);
+
+  :host(.compact) & {
+    display: none;
+  }
+
+  @include desktop-short {
+    display: none;
+  }
+}
+
+.round {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 99px;
+
+  :host(.compact) & {
+    width: 66px;
+    height: 66px;
+  }
+}
+
+.round--reject {
+  border: 1.5px solid var(--coral);
+  background-color: var(--bg);
+  color: var(--coral);
+}
+
+.round--edit {
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid var(--border-button);
+  background-color: var(--surface-raised);
+  color: var(--ink);
+
+  :host(.compact) & {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+.round--approve {
+  border: 0;
+  background-color: var(--lime);
+  color: var(--paper-ink);
+  box-shadow: 0 12px 40px -10px rgba(200, 241, 105, 0.55);
+}
+
+// ---- Edit mode ----
+
+.edit-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+
+  :host(.compact) & {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+.pill {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 26px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 500;
+
+  :host(.compact) & {
+    padding: 0 12px;
+  }
+}
+
+.pill--ghost {
+  border: 1.5px solid var(--border-button);
+  background-color: var(--surface-raised);
+
+  &:hover {
+    background-color: var(--line);
+  }
+}
+
+.pill--primary {
+  padding: 0 28px;
+  border: 0;
+  background-color: var(--lime);
+  color: var(--paper-ink);
+  font-weight: 600;
+}

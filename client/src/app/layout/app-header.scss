@@ -1,0 +1,95 @@
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px 0;
+  padding-top: max(20px, env(safe-area-inset-top));
+
+  @include desktop {
+    height: 84px;
+    padding: 0 48px;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  @include desktop {
+    gap: 12px;
+  }
+}
+
+.brand__mark {
+  width: 26px;
+  height: 26px;
+
+  @include desktop {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.brand__name {
+  @include serif;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+
+  @include desktop {
+    font-size: 30px;
+  }
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 99px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface-raised);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background-color 0.2s;
+
+  &:hover {
+    color: var(--ink);
+    background-color: var(--line);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 3px;
+  }
+
+  &.is-active {
+    border-color: var(--lime);
+    color: var(--lime);
+  }
+
+  @include desktop {
+    font-size: 13px;
+  }
+}

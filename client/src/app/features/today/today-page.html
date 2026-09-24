@@ -1,0 +1,41 @@
+<main class="today">
+  @if (isDesktop()) {
+    <app-queue-list class="queue" aria-label="Heutige Vorschläge" role="region" />
+  } @else {
+    <h1 class="visually-hidden">Heute</h1>
+  }
+
+  <section class="stage" aria-label="Aktueller Vorschlag">
+    <div class="glow" aria-hidden="true" [style.background-color]="glowColor()" [style.opacity]="glowOpacity()"></div>
+
+    @if (store.done()) {
+      <app-done-panel [compact]="!isDesktop()" />
+    } @else {
+      <app-suggestion-stack [compact]="!isDesktop()" />
+      <app-action-bar
+        [editing]="store.editing()"
+        [compact]="!isDesktop()"
+        (approve)="store.approve()"
+        (reject)="store.reject()"
+        (edit)="store.startEdit()"
+        (cancel)="store.cancelEdit()"
+        (save)="store.saveEdit()"
+      />
+    }
+  </section>
+
+  @if (isDesktop()) {
+    <aside class="aside" [attr.aria-label]="store.done() ? 'Heute entschieden' : 'Begründung'">
+      @if (store.done()) {
+        <div class="aside__eyebrow">Heute entschieden</div>
+        <app-decision-list />
+      } @else {
+        <app-reason-panel class="aside__reason" [suggestion]="store.current()" />
+      }
+    </aside>
+  }
+</main>
+
+@if (store.toast(); as toast) {
+  <app-undo-toast [toast]="toast" (undo)="store.undo()" />
+}

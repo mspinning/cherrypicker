@@ -1,0 +1,60 @@
+@use 'mixins' as *;
+
+:host {
+  position: relative;
+  display: block;
+  width: 540px;
+  max-width: 100%;
+  height: clamp(460px, calc(100dvh - 290px), 640px);
+
+  @include desktop-short {
+    height: clamp(460px, calc(100dvh - 216px), 640px);
+  }
+}
+
+:host(.compact) {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  flex-grow: 1;
+  min-height: 460px;
+  // room for the ghost cards peeking out below
+  margin-bottom: 26px;
+}
+
+.ghost,
+.card {
+  position: absolute;
+  inset: 0;
+}
+
+.ghost {
+  padding: 28px 32px;
+  border-radius: 30px;
+  transform-origin: 50% 100%;
+  @include eyebrow(12px, 0.1em);
+
+  :host(.compact) & {
+    border-radius: 26px;
+  }
+}
+
+.ghost--back {
+  background-color: var(--ghost-2);
+  color: #4e4b42;
+}
+
+.ghost--front {
+  background-color: var(--ghost-1);
+  color: #57544a;
+}
+
+.card {
+  touch-action: pan-y;
+  cursor: grab;
+  will-change: transform;
+
+  &.is-dragging {
+    cursor: grabbing;
+  }
+}

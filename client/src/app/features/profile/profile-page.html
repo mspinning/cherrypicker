@@ -1,0 +1,147 @@
+<div class="page">
+  <div class="head">
+    <a class="back" routerLink="/">
+      <app-icon name="back" [size]="16" />
+      Zurück zu Heute
+    </a>
+    <h1 class="head__title">Profil</h1>
+  </div>
+
+  @if (user(); as u) {
+    <div class="grid">
+      <section class="id" aria-label="Deine Visitenkarte">
+        <div class="id-stack">
+          <div class="id-ghost" aria-hidden="true"></div>
+          <article class="id-card">
+            <div class="id-card__top">
+              <span class="chip">Mitglied</span>
+              <span class="mono">seit {{ memberSinceShort() }}</span>
+            </div>
+
+            <div class="person">
+              <div class="avatar" [style.background-color]="avatarColor()" aria-hidden="true">{{ initials() }}</div>
+              <div class="person__name">
+                <span>{{ u.firstName }}</span>
+                <span>{{ u.lastName }}</span>
+              </div>
+            </div>
+
+            <dl class="facts">
+              <div>
+                <dt>E-Mail</dt>
+                <dd class="is-strong">{{ u.email }}</dd>
+              </div>
+              <div>
+                <dt>Rolle</dt>
+                <dd>{{ roles().join(', ') || '–' }}</dd>
+              </div>
+              <div>
+                <dt>Dabei seit</dt>
+                <dd>{{ memberSince() }}</dd>
+              </div>
+            </dl>
+
+            <div class="id-card__foot">
+              <div class="eyebrow">Heute entschieden</div>
+              <div class="tally" aria-hidden="true">
+                @for (q of today.queue(); track q.id) {
+                  <span class="tally__seg" [attr.data-status]="q.status"></span>
+                }
+              </div>
+              <div class="tally__legend">
+                {{ today.approvedCount() }} freigegeben · {{ today.rejectedCount() }} verworfen · {{ openCount() }} offen
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <div class="panels">
+        <section class="panel" aria-labelledby="today-title">
+          <div id="today-title" class="panel__eyebrow">Dein Tag</div>
+          <div class="stats">
+            <div class="stat">
+              <span class="stat__value is-approve">{{ today.approvedCount() }}</span>
+              <span class="stat__label">freigegeben</span>
+            </div>
+            <div class="stat">
+              <span class="stat__value is-reject">{{ today.rejectedCount() }}</span>
+              <span class="stat__label">verworfen</span>
+            </div>
+            <div class="stat">
+              <span class="stat__value">{{ openCount() }}</span>
+              <span class="stat__label">offen</span>
+            </div>
+          </div>
+          <a class="pill pill--primary" routerLink="/">
+            {{ today.done() ? 'Tagesübersicht ansehen' : 'Weiter entscheiden' }}
+            <app-icon name="arrow" [size]="18" [strokeWidth]="2" />
+          </a>
+        </section>
+
+        <section class="panel" aria-labelledby="account-title">
+          <div id="account-title" class="panel__eyebrow">Konto</div>
+          <dl class="rows">
+            <div class="rows__item">
+              <dt>Vorname</dt>
+              <dd>{{ u.firstName || '–' }}</dd>
+            </div>
+            <div class="rows__item">
+              <dt>Nachname</dt>
+              <dd>{{ u.lastName || '–' }}</dd>
+            </div>
+            <div class="rows__item">
+              <dt>E-Mail</dt>
+              <dd>{{ u.email }}</dd>
+            </div>
+            <div class="rows__item">
+              <dt>Konto-ID</dt>
+              <dd class="rows__id">
+                <span class="mono">{{ u.id }}</span>
+                <button type="button" class="icon-btn" [attr.aria-label]="copied() ? 'Kopiert' : 'Konto-ID kopieren'" (click)="copyId(u.id)">
+                  <app-icon [name]="copied() ? 'check' : 'copy'" [size]="16" />
+                </button>
+              </dd>
+            </div>
+            <div class="rows__item">
+              <dt>Rollen</dt>
+              <dd class="roles">
+                @for (role of roles(); track role) {
+                  <span class="role">{{ role }}</span>
+                } @empty {
+                  –
+                }
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel" aria-labelledby="session-title">
+          <div id="session-title" class="panel__eyebrow">Sitzung</div>
+          <div class="session">
+            <app-icon name="lock" [size]="18" class="session__icon" />
+            <span class="session__label">Sitzung aktiv bis</span>
+            <span class="session__value">{{ sessionUntil() }} Uhr</span>
+          </div>
+          <p class="note">
+            Dein Zugang erneuert sich im Hintergrund automatisch.
+          </p>
+          <button type="button" class="pill pill--danger" (click)="logout()">
+            <app-icon name="logout" [size]="18" />
+            Abmelden
+          </button>
+        </section>
+      </div>
+    </div>
+  } @else if (loadFailed()) {
+    <div class="state" role="alert">
+      <p>Dein Profil konnte nicht geladen werden.</p>
+      <button type="button" class="pill" (click)="reload()">Erneut versuchen</button>
+    </div>
+  } @else {
+    <div class="state" aria-live="polite">
+      <span class="loader" aria-hidden="true"></span>
+      <p>Profil wird geladen …</p>
+    </div>
+  }
+</div>

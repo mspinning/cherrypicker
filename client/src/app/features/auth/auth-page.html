@@ -1,0 +1,192 @@
+<div class="auth" [class.is-register]="mode() === 'register'">
+  <canvas #canvas class="scene" aria-hidden="true"></canvas>
+  @if (sceneFailed()) {
+    <svg class="scene-fallback" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+      <path d="M9.5 19C10.5 12.5 14.5 7.5 21 4.5" stroke="#F4F1EA" stroke-width="1" stroke-linecap="round" />
+      <path d="M20.5 19.5C19.5 13 19.8 8.5 21 4.5" stroke="#F4F1EA" stroke-width="1" stroke-linecap="round" />
+      <path d="M21 4.5c3.2-.4 5.6.9 6.8 3.2-2.7 1-5.3.3-6.8-3.2z" fill="#C8F169" />
+      <circle cx="9" cy="22.5" r="5.8" fill="#FF7A55" />
+      <circle cx="20.8" cy="23" r="5.3" fill="#F4F1EA" />
+    </svg>
+  }
+  <div class="veil" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <path d="M9.5 19C10.5 12.5 14.5 7.5 21 4.5" stroke="#F4F1EA" stroke-width="1.6" stroke-linecap="round" />
+        <path d="M20.5 19.5C19.5 13 19.8 8.5 21 4.5" stroke="#F4F1EA" stroke-width="1.6" stroke-linecap="round" />
+        <path d="M21 4.5c3.2-.4 5.6.9 6.8 3.2-2.7 1-5.3.3-6.8-3.2z" fill="#C8F169" />
+        <circle cx="9" cy="22.5" r="5.8" fill="#FF7A55" />
+        <circle cx="20.8" cy="23" r="5.3" fill="#F4F1EA" />
+      </svg>
+      <span class="brand__name">Cherry<em>pick</em></span>
+    </div>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__eyebrow">Heute · nur das Wesentliche</div>
+    <h1 id="hero-title" class="hero__title">
+      <span class="line"><span class="word">Nur</span> <span class="word">die</span></span>
+      <span class="line"><span class="word">Entscheidungen,</span></span>
+      <span class="line"><span class="word">die</span> <em class="word">zählen.</em></span>
+    </h1>
+    <p class="hero__text">
+      Cherrypick behält Postfach, Kalender und Deals im Blick und legt dir nur die Schritte vor, die gerade wirklich
+      etwas bewegen. Du entscheidest mit einem Wisch.
+    </p>
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__line">
+        <span class="ticker__dot" [class.is-reject]="ticker().tone === 'reject'"></span>
+        {{ ticker().text }}
+      </div>
+    </div>
+  </section>
+
+  <main class="panel" data-ui>
+    <div class="stack">
+      <div class="ghost ghost--back" aria-hidden="true"></div>
+      <div class="ghost ghost--front" aria-hidden="true"></div>
+
+      <form #card class="card" [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="status() !== 'idle'">
+        <div #stamp class="stamp" aria-hidden="true">{{ mode() === 'login' ? 'Willkommen' : 'Konto angelegt' }}</div>
+
+        <div class="switch reveal" role="group" aria-label="Anmelden oder registrieren">
+          <span class="switch__pill" aria-hidden="true"></span>
+          <button type="button" class="switch__option" [attr.aria-pressed]="mode() === 'login'" (click)="switchMode('login')">Anmelden</button>
+          <button type="button" class="switch__option" [attr.aria-pressed]="mode() === 'register'" (click)="switchMode('register')">
+            Registrieren
+          </button>
+        </div>
+
+        <div class="intro reveal">
+          <div class="eyebrow">{{ mode() === 'login' ? 'Willkommen zurück' : 'Neues Konto' }}</div>
+          <h2 class="title">{{ mode() === 'login' ? greeting : 'Willkommen an Bord.' }}</h2>
+          <p class="lead">
+            @if (mode() === 'login') {
+              Melde dich an. Deine Vorschläge für heute warten schon.
+            } @else {
+              Leg dein Konto an. Danach geht es direkt zu deinen ersten Vorschlägen.
+            }
+          </p>
+        </div>
+
+        @if (error(); as message) {
+          <div class="alert" role="alert">
+            <app-icon name="alert" [size]="18" />
+            <span>{{ message }}</span>
+          </div>
+        }
+
+        @if (mode() === 'register') {
+          <div class="row reveal">
+            <div class="field">
+              <label class="field__label" for="firstName">Vorname</label>
+              <input
+                id="firstName"
+                class="input"
+                formControlName="firstName"
+                autocomplete="given-name"
+                [class.is-invalid]="fieldInvalid('firstName')"
+                [attr.aria-invalid]="fieldInvalid('firstName')"
+              />
+            </div>
+            <div class="field">
+              <label class="field__label" for="lastName">Nachname</label>
+              <input
+                id="lastName"
+                class="input"
+                formControlName="lastName"
+                autocomplete="family-name"
+                [class.is-invalid]="fieldInvalid('lastName')"
+                [attr.aria-invalid]="fieldInvalid('lastName')"
+              />
+            </div>
+          </div>
+        }
+
+        <div class="field reveal">
+          <label class="field__label" for="email">E-Mail</label>
+          <input
+            id="email"
+            class="input"
+            type="email"
+            inputmode="email"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="du@firma.de"
+            [class.is-invalid]="fieldInvalid('email')"
+            [attr.aria-invalid]="fieldInvalid('email')"
+            aria-describedby="email-error"
+          />
+          @if (fieldInvalid('email')) {
+            <span id="email-error" class="field__error">Bitte gib eine gültige E-Mail-Adresse ein.</span>
+          }
+        </div>
+
+        <div class="field reveal">
+          <label class="field__label" for="password">Passwort</label>
+          <div class="password">
+            <input
+              id="password"
+              class="input"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              [attr.autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
+              [class.is-invalid]="fieldInvalid('password')"
+              [attr.aria-invalid]="fieldInvalid('password')"
+              aria-describedby="password-hint"
+            />
+            <button
+              type="button"
+              class="password__toggle"
+              [attr.aria-label]="showPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
+              [attr.aria-pressed]="showPassword()"
+              (click)="showPassword.set(!showPassword())"
+            >
+              <app-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="19" />
+            </button>
+          </div>
+          @if (mode() === 'register') {
+            <div id="password-hint" class="strength" [class.is-empty]="!strength().label">
+              <span class="strength__bars" aria-hidden="true">
+                @for (on of strengthBars(); track $index) {
+                  <span class="strength__bar" [class.is-on]="on"></span>
+                }
+              </span>
+              <span class="strength__label">{{ strength().label || 'mind. 8 Zeichen' }}</span>
+            </div>
+          } @else if (fieldInvalid('password')) {
+            <span id="password-hint" class="field__error">Bitte gib dein Passwort ein.</span>
+          }
+        </div>
+
+        <button type="submit" class="submit reveal" [class.is-busy]="status() === 'submitting'" [disabled]="status() !== 'idle'">
+          @if (status() === 'submitting') {
+            <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span>{{ mode() === 'login' ? 'Anmelden …' : 'Konto wird angelegt …' }}</span>
+          } @else if (status() === 'success') {
+            <app-icon name="check" [size]="20" [strokeWidth]="2.2" />
+            <span>Geschafft</span>
+          } @else {
+            <span>{{ mode() === 'login' ? 'Anmelden' : 'Konto anlegen' }}</span>
+            <app-icon class="submit__arrow" name="arrow" [size]="20" [strokeWidth]="2" />
+          }
+        </button>
+
+        <p class="alt reveal">
+          @if (mode() === 'login') {
+            Noch kein Konto?
+            <button type="button" class="link" (click)="switchMode('register')">Jetzt registrieren</button>
+          } @else {
+            Schon dabei?
+            <button type="button" class="link" (click)="switchMode('login')">Zur Anmeldung</button>
+          }
+        </p>
+      </form>
+    </div>
+
+  </main>
+
+  <div class="curtain" aria-hidden="true"></div>
+</div>

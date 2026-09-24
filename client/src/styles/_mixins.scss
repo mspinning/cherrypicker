@@ -1,0 +1,40 @@
+// Must match DESKTOP_QUERY in core/viewport.ts
+$desktop-min: 1180px;
+
+@mixin desktop {
+  @media (min-width: $desktop-min) {
+    @content;
+  }
+}
+
+// Laptop screens with little height: tighter vertical rhythm
+@mixin desktop-short {
+  @media (min-width: $desktop-min) and (max-height: 820px) {
+    @content;
+  }
+}
+
+@mixin mobile {
+  @media (max-width: $desktop-min - 0.02px) {
+    @content;
+  }
+}
+
+// Small mono caps label ("DEAL", "WARUM DIESER VORSCHLAG", …)
+@mixin eyebrow($size: 10.5px, $tracking: 0.12em) {
+  font-family: var(--font-mono);
+  font-size: $size;
+  letter-spacing: $tracking;
+  text-transform: uppercase;
+}
+
+@mixin serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+@mixin reset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

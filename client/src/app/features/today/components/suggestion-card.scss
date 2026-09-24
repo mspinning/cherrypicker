@@ -1,0 +1,396 @@
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.card {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 30px 32px 28px;
+  border-radius: 30px;
+  background-color: var(--paper);
+  color: var(--paper-ink);
+  box-shadow:
+    0 40px 80px -30px rgba(0, 0, 0, 0.7),
+    0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  user-select: none;
+  -webkit-user-select: none;
+
+  :host(.compact) & {
+    gap: 16px;
+    padding: 20px 20px 16px;
+    border-radius: 26px;
+    box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.75);
+  }
+}
+
+.eyebrow {
+  @include eyebrow(10.5px);
+  color: var(--paper-label);
+
+  :host(.compact) & {
+    font-size: 9.5px;
+  }
+}
+
+// ---- Swipe stamps ----
+
+.stamp {
+  position: absolute;
+  top: 30px;
+  z-index: 3;
+  padding: 10px 16px;
+  border-radius: 10px;
+  @include eyebrow(15px, 0.16em);
+  font-weight: 500;
+  pointer-events: none;
+
+  :host(.compact) & {
+    top: 22px;
+    padding: 8px 12px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+}
+
+.stamp--approve {
+  right: 28px;
+  transform: rotate(9deg);
+  background-color: var(--paper-ink);
+  color: var(--lime);
+
+  :host(.compact) & {
+    right: 18px;
+  }
+}
+
+.stamp--reject {
+  left: 28px;
+  transform: rotate(-9deg);
+  background-color: var(--coral);
+  color: var(--paper-ink);
+
+  :host(.compact) & {
+    left: 18px;
+  }
+}
+
+// ---- Top row ----
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 10px;
+  border-radius: 99px;
+  background-color: var(--paper-ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 500;
+
+  :host(.compact) & {
+    gap: 7px;
+    padding: 6px 12px 6px 9px;
+    font-size: 12.5px;
+  }
+}
+
+.confidence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  :host(.compact) & {
+    gap: 8px;
+  }
+}
+
+.confidence__bars {
+  display: flex;
+  gap: 3px;
+
+  :host(.compact) & {
+    gap: 2px;
+  }
+}
+
+.confidence__bar {
+  width: 5px;
+  height: 16px;
+  border-radius: 2px;
+  background-color: var(--paper-off);
+
+  &.is-on {
+    background-color: var(--paper-ink);
+  }
+
+  :host(.compact) & {
+    width: 4px;
+    height: 13px;
+  }
+}
+
+.confidence__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--paper-meter);
+
+  :host(.compact) & {
+    font-size: 11px;
+  }
+}
+
+// ---- Contact ----
+
+.contact {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  :host(.compact) & {
+    gap: 12px;
+  }
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  :host(.compact) & {
+    width: 48px;
+    height: 48px;
+    font-size: 15px;
+  }
+}
+
+.contact__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.contact__name {
+  @include serif;
+  font-style: italic;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+
+  :host(.compact) & {
+    font-size: 30px;
+  }
+}
+
+.contact__role {
+  font-size: 14px;
+  color: var(--paper-muted);
+
+  :host(.compact) & {
+    font-size: 13px;
+  }
+}
+
+// ---- Facts ----
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--paper-line);
+  border-bottom: 1px solid var(--paper-line);
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  dt {
+    @include eyebrow(10.5px);
+    color: var(--paper-label);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+
+    &.is-strong {
+      font-weight: 600;
+    }
+  }
+
+  :host(.compact) & {
+    gap: 8px;
+    padding: 11px 0;
+
+    > div {
+      gap: 4px;
+    }
+
+    dt {
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+    }
+
+    dd {
+      font-size: 13px;
+    }
+  }
+}
+
+// ---- Proposal ----
+
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.proposal__title {
+  margin: 0;
+  @include serif;
+  font-size: 32px;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+
+  :host(.compact) & {
+    font-size: 25px;
+    line-height: 1.04;
+    letter-spacing: -0.01em;
+  }
+}
+
+// ---- Draft ----
+
+.draft {
+  flex-grow: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background-color: var(--paper-inset);
+
+  :host(.compact) & {
+    gap: 8px;
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+}
+
+.draft__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.draft__mode {
+  color: var(--paper-ink);
+}
+
+.draft__subject {
+  font-size: 14px;
+  font-weight: 600;
+
+  :host(.compact) & {
+    font-size: 13px;
+  }
+}
+
+.draft__body {
+  flex-grow: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--paper-body);
+  white-space: pre-line;
+
+  :host(.compact) & {
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+}
+
+.draft__editor {
+  flex-grow: 1;
+  min-height: 0;
+  resize: none;
+  padding: 12px 14px;
+  border: 1.5px solid var(--paper-ink);
+  border-radius: 12px;
+  background-color: var(--paper-field);
+  color: var(--paper-ink);
+  font-size: 14.5px;
+  line-height: 1.55;
+  user-select: text;
+  -webkit-user-select: text;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(21, 20, 15, 0.12);
+  }
+
+  :host(.compact) & {
+    padding: 10px 12px;
+    border-radius: 10px;
+    // 16px prevents iOS zoom on focus
+    font-size: 16px;
+    line-height: 1.45;
+  }
+}
+
+// ---- Mobile reasoning ----
+
+.reason {
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.why-toggle {
+  flex-shrink: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1.5px solid var(--paper-off);
+  background-color: transparent;
+  color: var(--paper-ink);
+  font-size: 14px;
+  font-weight: 500;
+
+  &:active {
+    background-color: var(--paper-inset);
+  }
+
+  &:focus-visible {
+    outline-color: var(--paper-ink);
+  }
+}

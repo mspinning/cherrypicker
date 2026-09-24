@@ -1,0 +1,156 @@
+@use 'mixins' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  color: var(--ink);
+}
+
+:host(.compact) {
+  gap: 14px;
+  overflow: auto;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background-color: var(--paper-ink);
+}
+
+.eyebrow {
+  @include eyebrow(10.5px);
+  color: var(--ink-muted);
+
+  :host(.compact) & {
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+  }
+}
+
+.eyebrow--accent {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--lime);
+
+  :host(.compact) & {
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+  }
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 25px;
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+
+  :host(.compact) & {
+    font-size: 19px;
+    line-height: 1.2;
+  }
+}
+
+.evidence {
+  @include reset-list;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  :host(.compact) & {
+    gap: 12px;
+  }
+}
+
+.evidence__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  :host(.compact) & {
+    gap: 5px;
+  }
+}
+
+.evidence__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.evidence__text {
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--ink-body);
+
+  :host(.compact) & {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+}
+
+.meter {
+  height: 3px;
+  border-radius: 99px;
+  background-color: var(--track);
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  border-radius: 99px;
+  background-color: var(--lime);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--surface-border);
+
+  :host(.compact) & {
+    margin-top: 0;
+    padding-top: 10px;
+    border-top-color: #2e2e28;
+  }
+}
+
+.best-time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+
+  :host(.compact) & {
+    gap: 8px;
+    font-size: 13px;
+  }
+}
+
+.best-time__icon {
+  color: var(--lime);
+}
+
+.best-time__label {
+  color: var(--ink-muted);
+}
+
+.best-time__value {
+  margin-left: auto;
+  font-weight: 500;
+  text-align: right;
+}
+
+.on-approve {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}

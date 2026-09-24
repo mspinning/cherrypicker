@@ -1,0 +1,85 @@
+@let s = suggestion();
+
+<article class="card" [attr.aria-label]="'Vorschlag für ' + s.contact.name">
+  <div class="stamp stamp--approve" aria-hidden="true" [style.opacity]="approveStamp()">Freigeben</div>
+  <div class="stamp stamp--reject" aria-hidden="true" [style.opacity]="rejectStamp()">Verwerfen</div>
+
+  <div class="top">
+    <span class="kind">
+      <app-icon [name]="s.kind" [size]="compact() ? 15 : 17" />
+      {{ s.kindLabel }}
+    </span>
+    <span class="confidence">
+      <span class="confidence__bars" aria-hidden="true">
+        @for (on of confidenceBars(); track $index) {
+          <span class="confidence__bar" [class.is-on]="on"></span>
+        }
+      </span>
+      <span class="confidence__label">{{ s.confidence }} %@if (!compact()) { sicher}</span>
+    </span>
+  </div>
+
+  <div class="contact">
+    <div class="avatar" [style.background-color]="s.contact.avatarColor" aria-hidden="true">{{ s.contact.initials }}</div>
+    <div class="contact__text">
+      <div class="contact__name">{{ s.contact.name }}</div>
+      <div class="contact__role">{{ s.contact.role }} · {{ s.contact.company }}</div>
+    </div>
+  </div>
+
+  <dl class="facts">
+    <div>
+      <dt>Deal</dt>
+      <dd class="is-strong">{{ s.dealValue }}</dd>
+    </div>
+    <div>
+      <dt>Phase</dt>
+      <dd>{{ s.stage }}</dd>
+    </div>
+    <div>
+      <dt>{{ compact() ? 'Kontakt' : 'Letzter Kontakt' }}</dt>
+      <dd>{{ s.lastContact }}</dd>
+    </div>
+  </dl>
+
+  <div class="proposal">
+    @if (!compact()) {
+      <div class="eyebrow">Cherrypick schlägt vor</div>
+    }
+    <h2 class="proposal__title">{{ s.title }}</h2>
+  </div>
+
+  @if (compact() && showReason()) {
+    <app-reason-panel class="reason" [suggestion]="s" [compact]="true" />
+  } @else {
+    <section class="draft" [attr.aria-label]="s.draftLabel">
+      <div class="draft__head eyebrow">
+        <span>{{ s.draftLabel }}</span>
+        @if (editing() && !compact()) {
+          <span class="draft__mode">Bearbeiten</span>
+        }
+      </div>
+      @if (s.subject) {
+        <div class="draft__subject">{{ s.subject }}</div>
+      }
+      @if (editing()) {
+        <label class="visually-hidden" [attr.for]="'draft-' + s.id">Entwurf bearbeiten</label>
+        <textarea #editor class="draft__editor" [id]="'draft-' + s.id" [value]="draft()" (input)="onInput($event)"></textarea>
+      } @else {
+        <div class="draft__body">{{ draft() }}</div>
+      }
+    </section>
+  }
+
+  @if (compact() && !editing()) {
+    <button type="button" class="why-toggle" [attr.aria-expanded]="showReason()" (click)="toggleReason.emit()">
+      @if (showReason()) {
+        <app-icon name="back" [size]="17" />
+        Zurück zum {{ s.draftLabel }}
+      } @else {
+        <app-icon name="help" [size]="17" />
+        Warum schlägt Cherrypick das vor?
+      }
+    </button>
+  }
+</article>

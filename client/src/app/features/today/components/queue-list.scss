@@ -1,0 +1,152 @@
+@use 'mixins' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.title {
+  margin: 0;
+  @include serif;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.list {
+  @include reset-list;
+  flex-grow: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border-radius: 16px;
+  transition:
+    opacity 0.3s,
+    background-color 0.3s;
+
+  &.is-current {
+    background-color: var(--row-active);
+  }
+
+  &.is-waiting {
+    opacity: 0.62;
+  }
+}
+
+.row__pos {
+  width: 22px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.row__text {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.row__name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.row__meta {
+  font-size: 13px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background-color: var(--waiting);
+
+  &[data-status='approved'],
+  &[data-status='edited'] {
+    background-color: var(--lime);
+  }
+
+  &[data-status='rejected'] {
+    background-color: var(--coral);
+  }
+
+  &[data-status='current'] {
+    background-color: var(--ink);
+  }
+}
+
+.hints {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.key {
+  padding: 3px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.key--approve {
+  color: var(--lime);
+}
+
+.key--reject {
+  color: var(--coral);
+}

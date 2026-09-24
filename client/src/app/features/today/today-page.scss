@@ -1,0 +1,96 @@
+@use 'mixins' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.today {
+  flex-grow: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  @include desktop {
+    display: grid;
+    grid-template-columns: clamp(280px, 24vw, 340px) minmax(0, 1fr) clamp(340px, 28vw, 400px);
+    gap: 40px;
+    padding: 36px 48px 40px;
+  }
+
+  @include desktop-short {
+    padding-block: 24px;
+  }
+}
+
+.queue {
+  min-height: 0;
+}
+
+.stage {
+  position: relative;
+  flex-grow: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 16px 28px;
+  padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 12px));
+
+  @include desktop {
+    justify-content: center;
+    gap: 30px;
+    padding: 0;
+  }
+
+  @include desktop-short {
+    gap: 22px;
+  }
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 420px;
+  height: 420px;
+  margin: -210px 0 0 -210px;
+  border-radius: 999px;
+  filter: blur(70px);
+  pointer-events: none;
+  transition:
+    background-color 0.3s,
+    opacity 0.3s;
+
+  @include desktop {
+    top: 44%;
+    width: 620px;
+    height: 620px;
+    margin: -310px 0 0 -310px;
+    filter: blur(90px);
+  }
+}
+
+.aside {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 32px;
+  border: 1px solid var(--surface-border);
+  border-radius: 30px;
+  background-color: var(--surface);
+}
+
+.aside__reason {
+  flex-grow: 1;
+}
+
+.aside__eyebrow {
+  @include eyebrow(11px, 0.14em);
+  color: var(--lime);
+}
