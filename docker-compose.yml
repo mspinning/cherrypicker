@@ -61,6 +61,26 @@ services:
       retries: 30
       start_period: 30s
 
+  bifrost:
+    # LLM gateway (OpenAI-compatible API in front of Anthropic, OpenAI, ...).
+    # Providers/keys are configured via the web UI at http://localhost:${BIFROST_PORT}
+    # and persisted in the bifrost-data volume. Keys passed below can be
+    # referenced there as "env.ANTHROPIC_API_KEY" instead of pasting them in.
+    image: maximhq/bifrost:v2.2.3
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: ${BIFROST_LOG_LEVEL:-info}
+      LOG_STYLE: pretty
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Required once to create the initial admin account in the web UI
+      BIFROST_SETUP_TOKEN: ${BIFROST_SETUP_TOKEN:-}
+    ports:
+      - "${BIFROST_PORT:-8081}:8080"
+    volumes:
+      - bifrost-data:/app/data
+    # Healthcheck is built into the image (GET /health)
+
   server:
     build:
       context: ./server
@@ -79,6 +99,8 @@ services:
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      # OpenAI-compatible base URL of the Bifrost gateway
+      BIFROST_URL: http://bifrost:8080
     ports:
       - "${SERVER_PORT:-3000}:3000"
     depends_on:
@@ -86,6 +108,9 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      bifrost:
+        condition: service_healthy
 
 volumes:
   postgres-data:
+  bifrost-data:
