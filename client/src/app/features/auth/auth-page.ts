@@ -20,7 +20,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { CurrentUser } from '../../core/auth/auth.models';
 import { Icon } from '../../shared/icon';
 import { MOCK_SUGGESTIONS } from '../today/mock-suggestions';
-import { AuthMode, describeAuthError, passwordStrength } from './auth-errors';
+import { AuthMode, PENDING_AFTER_REGISTER, PENDING_ON_LOGIN, describeAuthError, isApprovalPending, passwordStrength } from './auth-errors';
 import { CHERRY_LEFT_EDGE } from './cherry-anchor';
 import type { LoginScene } from './login-scene';
 
@@ -54,6 +54,8 @@ export class AuthPage {
   readonly mode = signal<AuthMode>(this.route.snapshot.data['mode'] === 'register' ? 'register' : 'login');
   readonly status = signal<Status>('idle');
   readonly error = signal<string | null>(null);
+  /** Not an error: e.g. the account exists but waits for an admin. */
+  readonly notice = signal<string | null>(null);
   readonly showPassword = signal(false);
   readonly sceneFailed = signal(false);
   readonly tickerIndex = signal(0);
@@ -104,6 +106,7 @@ export class AuthPage {
 
     this.mode.set(mode);
     this.error.set(null);
+    this.notice.set(null);
     this.applyModeValidators();
     this.form.markAsUntouched();
     const redirect = this.redirectTarget();
@@ -124,6 +127,7 @@ export class AuthPage {
   submit(): void {
     if (this.status() !== 'idle') return;
     this.error.set(null);
+    this.notice.set(null);
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -141,20 +145,34 @@ export class AuthPage {
     this.status.set('submitting');
     this.scene?.setMood('busy');
 
-    const request$: Observable<CurrentUser> =
+    const request$: Observable<CurrentUser | null> =
       this.mode() === 'login'
         ? this.auth.login(email, password)
         : this.auth.register({ email, password, firstName: firstName.trim(), lastName: lastName.trim() });
 
     request$.subscribe({
-      next: () => void this.celebrateAndEnter(),
+      next: (user) => (user ? void this.celebrateAndEnter() : this.awaitApproval()),
       error: (err: unknown) => {
         this.status.set('idle');
+        if (isApprovalPending(err)) {
+          this.notice.set(PENDING_ON_LOGIN);
+          this.scene?.setMood('idle');
+          return;
+        }
         this.error.set(describeAuthError(err, this.mode()));
         this.scene?.setMood('error');
         this.shake();
       },
     });
+  }
+
+  /** Registered, but an admin has to approve the account before the first sign-in. */
+  private awaitApproval(): void {
+    this.status.set('idle');
+    this.scene?.setMood('idle');
+    this.switchMode('login');
+    this.form.controls.password.reset();
+    this.notice.set(PENDING_AFTER_REGISTER);
   }
 
   fieldInvalid(name: keyof typeof this.form.controls): boolean {

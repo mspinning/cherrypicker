@@ -2,6 +2,20 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 export type AuthMode = 'login' | 'register';
 
+export const PENDING_AFTER_REGISTER =
+  'Dein Konto ist angelegt. Ein Admin muss es noch freigeben – danach kannst du dich hier anmelden.';
+export const PENDING_ON_LOGIN =
+  'Dein Konto wartet noch auf die Freigabe durch einen Admin. Sobald es freigegeben ist, kannst du dich anmelden.';
+
+/** Right credentials, but no admin has approved the account yet. */
+export function isApprovalPending(err: unknown): boolean {
+  return (
+    err instanceof HttpErrorResponse &&
+    err.status === 403 &&
+    (err.error as { code?: string } | null)?.code === 'APPROVAL_PENDING'
+  );
+}
+
 /** Turns backend / Keycloak errors into something a person can act on. */
 export function describeAuthError(err: unknown, mode: AuthMode): string {
   if (!(err instanceof HttpErrorResponse)) return 'Etwas ist schiefgelaufen. Bitte versuch es noch einmal.';

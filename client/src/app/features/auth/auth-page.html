@@ -78,6 +78,13 @@
           </div>
         }
 
+        @if (notice(); as message) {
+          <div class="alert alert--info" role="status">
+            <app-icon name="clock" [size]="18" />
+            <span>{{ message }}</span>
+          </div>
+        }
+
         @if (mode() === 'register') {
           <div class="row reveal">
             <div class="field">

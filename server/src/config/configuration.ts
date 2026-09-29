@@ -17,7 +17,26 @@ export interface AppConfig {
     clientId: string;
     clientSecret: string;
   };
+  knowledge: {
+    /** Uploaded documents live here (a Docker volume in production) */
+    storageDir: string;
+    /** Upper limit per uploaded document */
+    maxUploadBytes: number;
+  };
+  embedding: {
+    /** OpenAI-compatible base URL of the Bifrost gateway; empty disables embeddings */
+    baseUrl: string;
+    /** Bifrost virtual key, sent as x-bf-vk */
+    virtualKey: string;
+    /** Bifrost model id, e.g. "ollama/bge-m3" or "openai/text-embedding-3-small" */
+    model: string;
+    /** Must match what the model returns; fixes the size of the vector column */
+    dimensions: number;
+  };
 }
+
+/** Read at import time by the chunk entity, which needs the vector size in its decorator. */
+export const EMBEDDING_DIMENSIONS = parseInt(process.env.EMBEDDING_DIMENSIONS ?? '1024', 10);
 
 function required(name: string): string {
   const value = process.env[name];
@@ -43,5 +62,15 @@ export default (): AppConfig => ({
     realm: required('KEYCLOAK_REALM'),
     clientId: required('KEYCLOAK_CLIENT_ID'),
     clientSecret: required('KEYCLOAK_CLIENT_SECRET'),
+  },
+  knowledge: {
+    storageDir: process.env.STORAGE_DIR ?? './storage',
+    maxUploadBytes: parseInt(process.env.KNOWLEDGE_MAX_UPLOAD_MB ?? '50', 10) * 1024 * 1024,
+  },
+  embedding: {
+    baseUrl: (process.env.BIFROST_URL ?? '').replace(/\/$/, ''),
+    virtualKey: process.env.BIFROST_VIRTUAL_KEY ?? '',
+    model: process.env.EMBEDDING_MODEL ?? 'ollama/bge-m3',
+    dimensions: EMBEDDING_DIMENSIONS,
   },
 });

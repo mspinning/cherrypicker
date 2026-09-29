@@ -1,0 +1,70 @@
+@use 'mixins' as *;
+@use '../settings-ui' as ui;
+
+@include ui.buttons;
+@include ui.feedback;
+@include ui.forms;
+
+:host {
+  display: block;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--lime-deep);
+  background-color: var(--row-active);
+  box-shadow: 0 0 0 4px rgba(200, 241, 105, 0.06);
+
+  @media (min-width: 720px) {
+    padding: 22px 22px 20px;
+  }
+}
+
+.editor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -6px -6px -4px 0;
+}
+
+.editor__title {
+  @include eyebrow(11px, 0.14em);
+  color: var(--lime);
+}
+
+.editor__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+
+  @media (min-width: 720px) {
+    grid-template-columns: minmax(0, 1fr) 200px;
+  }
+}
+
+.editor__content {
+  min-height: 240px;
+}
+
+.editor__count {
+  align-self: flex-end;
+  font-variant-numeric: tabular-nums;
+
+  &.is-over {
+    color: var(--coral);
+  }
+}
+
+.editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.state {
+  padding: 24px 0;
+}

@@ -1,0 +1,137 @@
+@if (store.overview(); as overview) {
+  <section class="panel intro" aria-labelledby="knowledge-title">
+    <div class="panel__head">
+      <div class="panel__intro">
+        <div id="knowledge-title" class="panel__eyebrow">
+          <app-icon name="knowledge" [size]="16" />
+          Wissensquellen
+        </div>
+        <p class="panel__lead">
+          Was die Firmen der Gruppe anbieten. Agenten lesen hier nach, welche Leistungen es gibt und was in früheren Angeboten
+          stand.
+        </p>
+      </div>
+      <div class="counts">
+        <div class="count">
+          <span class="count__value">{{ formatNumber(store.totals().companies) }}</span>
+          <span class="count__label">{{ store.totals().companies === 1 ? 'Firma' : 'Firmen' }}</span>
+        </div>
+        <div class="count">
+          <span class="count__value">{{ formatNumber(store.totals().sources) }}</span>
+          <span class="count__label">{{ store.totals().sources === 1 ? 'Quelle' : 'Quellen' }}</span>
+        </div>
+        <div class="count">
+          <span class="count__value">{{ vectorShare() }}<small>%</small></span>
+          <span class="count__label">vektorisiert</span>
+        </div>
+      </div>
+    </div>
+
+    @if (vectorsBlocked()) {
+      <div class="notice" role="status">
+        <app-icon name="clock" [size]="18" />
+        <div class="notice__text">
+          <strong>Vektorisierung pausiert.</strong>
+          {{ formatNumber(overview.embedding.pendingChunks) }} Abschnitte warten auf ihre Vektoren. Gespeichert und per Stichwort
+          auffindbar sind sie schon, die Vektoren werden automatisch nachgeholt.
+          <span class="notice__reason">{{ overview.embedding.lastError ?? 'Kein Embedding-Modell konfiguriert.' }}</span>
+        </div>
+        <button type="button" class="pill pill--small" [disabled]="retrying()" (click)="retryEmbedding()">
+          <app-icon name="refresh" [size]="16" />
+          Jetzt versuchen
+        </button>
+      </div>
+    }
+  </section>
+
+  <div class="layout">
+    <aside class="companies panel" aria-labelledby="companies-title">
+      <div class="companies__head">
+        <h2 id="companies-title" class="companies__title">Firmen der Gruppe</h2>
+        @if (!creating() && overview.companies.length) {
+          <button type="button" class="pill pill--small" (click)="creating.set(true)">
+            <app-icon name="plus" [size]="16" [strokeWidth]="2.2" />
+            Firma
+          </button>
+        }
+      </div>
+
+      @if (creating()) {
+        <div class="create">
+          <span class="create__title">Neue Firma</span>
+          <app-company-form (saved)="created($event)" (cancelled)="creating.set(false)" />
+        </div>
+      }
+
+      @if (overview.companies.length) {
+        <ul class="company-list">
+          @for (c of overview.companies; track c.id) {
+            <li>
+              <a
+                class="company"
+                [class.is-selected]="c.id === selected()?.id"
+                [routerLink]="[]"
+                [queryParams]="{ company: c.id }"
+                [attr.aria-current]="c.id === selected()?.id ? 'true' : null"
+              >
+                <span class="company__badge" [style.background-color]="colorOf(c)" aria-hidden="true">
+                  <app-icon name="building" [size]="18" />
+                </span>
+                <span class="company__main">
+                  <span class="company__name">{{ c.name }}</span>
+                  @if (c.description) {
+                    <span class="company__desc">{{ c.description }}</span>
+                  }
+                  <span class="company__counts">{{ countsOf(c) }}</span>
+                </span>
+                @if (c.pending) {
+                  <span class="company__flag is-busy" [attr.aria-label]="c.pending + ' in Arbeit'">
+                    <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                    {{ formatNumber(c.pending) }}
+                  </span>
+                } @else if (c.failed) {
+                  <span class="company__flag is-failed" [attr.aria-label]="c.failed + ' mit Fehler'">
+                    <app-icon name="alert" [size]="14" />
+                    {{ formatNumber(c.failed) }}
+                  </span>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      } @else if (!creating()) {
+        <div class="start">
+          <app-icon name="building" [size]="26" />
+          <p>
+            <strong>Leg die erste Firma an.</strong><br />
+            Pro Firma der Gruppe sammelst du Texte, Webseiten und Dokumente wie vergangene Angebote.
+          </p>
+          <button type="button" class="pill pill--primary" (click)="creating.set(true)">
+            <app-icon name="plus" [size]="16" [strokeWidth]="2.2" />
+            Firma anlegen
+          </button>
+        </div>
+      }
+    </aside>
+
+    <div class="detail">
+      @for (c of selectedList(); track c.id) {
+        <app-company-panel [company]="c" (deleted)="deleted()" />
+      } @empty {
+        @if (overview.companies.length) {
+          <div class="placeholder">Wähle links eine Firma.</div>
+        }
+      }
+    </div>
+  </div>
+} @else if (store.loadFailed()) {
+  <div class="state" role="alert">
+    <p>Die Wissensquellen konnten nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="reload()">Erneut versuchen</button>
+  </div>
+} @else {
+  <div class="state" aria-live="polite">
+    <span class="loader" aria-hidden="true"></span>
+    <p>Wissensquellen werden geladen …</p>
+  </div>
+}

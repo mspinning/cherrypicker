@@ -79,6 +79,10 @@ services:
       - "${BIFROST_PORT:-8081}:8080"
     volumes:
       - bifrost-data:/app/data
+    # Lets the container reach services on the host (e.g. Ollama at
+    # http://host.docker.internal:11434). Built into Docker Desktop, needed on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Healthcheck is built into the image (GET /health)
 
   server:
@@ -101,6 +105,15 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       # OpenAI-compatible base URL of the Bifrost gateway
       BIFROST_URL: http://bifrost:8080
+      # Virtual key from the Bifrost UI (governance is on, calls without it get 401)
+      BIFROST_VIRTUAL_KEY: ${BIFROST_VIRTUAL_KEY:-}
+      # Knowledge base: model for embeddings and its vector size (see README)
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-ollama/bge-m3}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
+      STORAGE_DIR: /app/storage
+      KNOWLEDGE_MAX_UPLOAD_MB: ${KNOWLEDGE_MAX_UPLOAD_MB:-50}
+    volumes:
+      - server-storage:/app/storage
     ports:
       - "${SERVER_PORT:-3000}:3000"
     depends_on:
@@ -114,3 +127,4 @@ services:
 volumes:
   postgres-data:
   bifrost-data:
+  server-storage:

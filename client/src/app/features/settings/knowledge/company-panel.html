@@ -1,0 +1,112 @@
+@let c = company();
+
+<section class="panel" aria-labelledby="company-name">
+  <a class="to-list" routerLink="." [queryParams]="{}">
+    <app-icon name="back" [size]="16" />
+    Alle Firmen
+  </a>
+
+  @if (editing()) {
+    <div class="edit">
+      <span class="edit__title">Firma bearbeiten</span>
+      <app-company-form [company]="c" (saved)="saved($event)" (cancelled)="editing.set(false)" />
+    </div>
+  } @else {
+    <div class="head">
+      <div class="badge" [style.background-color]="color()" aria-hidden="true">{{ initials() }}</div>
+      <div class="head__text">
+        <h2 id="company-name" class="head__name">{{ c.name }}</h2>
+        @if (c.description) {
+          <p class="head__desc">{{ c.description }}</p>
+        } @else {
+          <p class="head__desc is-missing">
+            Noch keine Beschreibung. Ein, zwei Sätze helfen Agenten, die richtige Firma zu wählen.
+          </p>
+        }
+        <p class="head__stats">
+          {{ plural(total(), 'Quelle', 'Quellen') }} · {{ plural(c.chunks, 'Abschnitt', 'Abschnitte') }}
+          @if (c.chunks) {
+            · {{ vectorShare() }} % vektorisiert
+          }
+        </p>
+      </div>
+      <div class="head__actions">
+        <button type="button" class="icon-btn" aria-label="Firma bearbeiten" title="Bearbeiten" (click)="editing.set(true)">
+          <app-icon name="edit" [size]="18" />
+        </button>
+        <button
+          type="button"
+          class="icon-btn is-danger js-delete"
+          aria-label="Firma löschen"
+          title="Löschen"
+          [attr.aria-expanded]="confirmingDelete()"
+          (click)="confirmingDelete() ? cancelDelete() : askDelete()"
+        >
+          <app-icon name="trash" [size]="18" />
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (confirmingDelete()) {
+    <div class="confirm" role="group" aria-label="Löschen bestätigen" (keydown.escape)="cancelDelete()">
+      <p class="confirm__text">
+        <strong>{{ c.name }}</strong> mit {{ plural(total(), 'Quelle', 'Quellen') }} endgültig löschen? Hochgeladene Dateien werden
+        ebenfalls entfernt.
+      </p>
+      <div class="confirm__actions">
+        <button type="button" class="pill js-cancel-delete" (click)="cancelDelete()">Abbrechen</button>
+        <button type="button" class="pill pill--danger" [disabled]="busy()" (click)="confirmDelete()">
+          @if (busy()) {
+            <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+          } @else {
+            <app-icon name="trash" [size]="18" />
+          }
+          Löschen
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span>{{ message }}</span>
+    </div>
+  }
+
+  @if (c.failed) {
+    <div class="failed">
+      <span>
+        <app-icon name="alert" [size]="16" />
+        {{ c.failed === 1 ? '1 Quelle konnte' : c.failed + ' Quellen konnten' }} nicht verarbeitet werden.
+      </span>
+      <button type="button" class="pill pill--small" [disabled]="busy()" (click)="retryFailed()">
+        <app-icon name="refresh" [size]="16" />
+        Alle erneut versuchen
+      </button>
+    </div>
+  }
+
+  <div class="views" role="group" aria-label="Art der Quellen">
+    @for (v of views; track v.type) {
+      <button type="button" class="view" [class.is-on]="view() === v.type" [attr.aria-pressed]="view() === v.type" (click)="view.set(v.type)">
+        <app-icon [name]="v.icon" [size]="17" />
+        <span class="view__label">{{ v.label }}</span>
+        <span class="view__count">{{ c.counts[v.type] }}</span>
+      </button>
+    }
+  </div>
+
+  @switch (view()) {
+    @case ('text') {
+      <app-text-sources [companyId]="c.id" [reloadKey]="reloadKey()" />
+    }
+    @case ('url') {
+      <app-url-sources [companyId]="c.id" [reloadKey]="reloadKey()" />
+    }
+    @case ('document') {
+      <app-document-sources [companyId]="c.id" [reloadKey]="reloadKey()" />
+    }
+  }
+</section>

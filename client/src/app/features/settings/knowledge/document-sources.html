@@ -1,0 +1,153 @@
+<div
+  class="drop"
+  [class.is-over]="dragOver()"
+  (dragenter)="onDragOver($event)"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)"
+  (drop)="onDrop($event)"
+>
+  <div class="drop__icon" aria-hidden="true">
+    <app-icon name="upload" [size]="24" />
+  </div>
+  <div class="drop__text">
+    <p class="drop__title">{{ dragOver() ? 'Loslassen zum Hochladen' : 'Dokumente hierher ziehen' }}</p>
+    <p class="drop__hint">
+      Vergangene Angebote, Präsentationen, Leistungsbeschreibungen. PDF, Word, Text, Markdown, CSV oder HTML, bis {{ maxSize() }} je Datei.
+    </p>
+  </div>
+  <div class="drop__actions">
+    <label class="field drop__category">
+      <span class="field__label">Kategorie</span>
+      <select class="select" [formControl]="uploadCategory">
+        @for (c of categories; track c.value) {
+          <option [value]="c.value">{{ c.label }}</option>
+        }
+      </select>
+    </label>
+    <button type="button" class="pill" (click)="folderPicker.click()">Ordner wählen</button>
+    <button type="button" class="pill pill--primary" (click)="picker.click()">
+      <app-icon name="plus" [size]="16" [strokeWidth]="2.2" />
+      Dateien auswählen
+    </button>
+    <input #picker class="visually-hidden" type="file" multiple tabindex="-1" aria-hidden="true" [accept]="accept()" (change)="picked($event)" />
+    <input
+      #folderPicker
+      class="visually-hidden"
+      type="file"
+      webkitdirectory
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="picked($event, true)"
+    />
+  </div>
+</div>
+
+@if (skipped()) {
+  <p class="skipped" role="status">
+    {{ plural(skipped(), 'Datei', 'Dateien') }} im Ordner übersprungen: versteckt oder kein unterstützter Typ.
+  </p>
+}
+
+@if (uploads().length) {
+  @let st = uploadStats();
+  <section class="uploads" aria-label="Uploads">
+    <div class="uploads__head">
+      <div class="uploads__summary" role="status">
+        <strong>{{ st.busy ? 'Lädt hoch' : 'Upload fertig' }}</strong>
+        <span>
+          {{ formatNumber(st.done) }} von {{ formatNumber(st.total) }} hochgeladen
+          @if (st.duplicates) {
+            · {{ st.duplicates }} schon vorhanden
+          }
+          @if (st.errors) {
+            · <span class="is-error">{{ st.errors }} mit Fehler</span>
+          }
+        </span>
+      </div>
+      @if (!st.busy) {
+        <button type="button" class="pill pill--small" (click)="clearUploads()">Ausblenden</button>
+      }
+    </div>
+    <div class="bar" aria-hidden="true"><span [style.width.%]="st.progress * 100"></span></div>
+
+    <ul class="uploads__list">
+      @for (u of uploads(); track u.id) {
+        <li class="upload" [attr.data-state]="u.state">
+          <span class="upload__name">{{ u.file.name }}</span>
+          <span class="upload__size">{{ formatBytes(u.file.size) }}</span>
+          <span class="upload__state">
+            @if (u.state === 'uploading') {
+              {{ formatNumber(u.progress * 100) }} %
+            } @else {
+              {{ u.message ?? uploadLabels[u.state] }}
+            }
+          </span>
+          @if (u.state === 'error' && u.retryable !== false) {
+            <button type="button" class="upload__retry" (click)="retry(u.id)" [attr.aria-label]="'Erneut hochladen: ' + u.file.name">
+              <app-icon name="refresh" [size]="16" />
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<div class="toolbar">
+  <label class="search">
+    <app-icon name="search" [size]="18" />
+    <span class="visually-hidden">Dokumente durchsuchen</span>
+    <input class="input search__input" type="search" [formControl]="search" placeholder="Titel oder Dateiname" autocomplete="off" />
+  </label>
+  <label class="toolbar__filter">
+    <span class="visually-hidden">Kategorie</span>
+    <select class="select" [formControl]="categoryFilter">
+      <option value="">Alle Kategorien</option>
+      @for (c of categories; track c.value) {
+        <option [value]="c.value">{{ c.label }}</option>
+      }
+    </select>
+  </label>
+  <label class="toolbar__filter">
+    <span class="visually-hidden">Zustand</span>
+    <select class="select" [formControl]="stateFilter">
+      <option value="">Alle Zustände</option>
+      <option value="ready">Bereit</option>
+      <option value="pending">In Arbeit</option>
+      <option value="failed">Fehler</option>
+    </select>
+  </label>
+</div>
+
+@if (list.loaded()) {
+  <div class="list-head">
+    <span>{{ plural(list.total(), 'Dokument', 'Dokumente') }}{{ filtered() ? ' gefunden' : '' }}</span>
+    @if (filtered()) {
+      <button type="button" class="link-btn" (click)="resetFilters()">Filter zurücksetzen</button>
+    }
+  </div>
+  <div class="list" role="list" aria-label="Dokumente">
+    @for (s of list.items(); track s.id) {
+      <app-source-item role="listitem" [source]="s" (changed)="list.replace($event)" (removed)="list.remove($event)" />
+    } @empty {
+      @if (!filtered()) {
+        <div class="empty">
+          <app-icon name="file" [size]="22" />
+          <span><strong>Noch keine Dokumente.</strong><br />Zieh einzelne Dateien oder einen ganzen Ordner voller Angebote in das Feld oben.</span>
+        </div>
+      }
+    }
+  </div>
+  @if (list.hasMore()) {
+    <button type="button" class="pill more" [disabled]="list.loading()" (click)="list.loadMore()">
+      Weitere laden ({{ formatNumber(list.total() - list.items().length) }})
+    </button>
+  }
+} @else if (list.loadFailed()) {
+  <div class="state" role="alert">
+    <p>Die Dokumente konnten nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="list.load()">Erneut versuchen</button>
+  </div>
+} @else {
+  <div class="state" aria-live="polite"><span class="loader" aria-hidden="true"></span></div>
+}

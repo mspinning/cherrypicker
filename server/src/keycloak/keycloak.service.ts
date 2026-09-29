@@ -159,10 +159,12 @@ export class KeycloakService {
     return id;
   }
 
+  /** A user that is already gone counts as deleted. */
   async deleteUser(id: string): Promise<void> {
     const res = await this.adminFetch(`/users/${id}`, { method: 'DELETE' });
     if (!res.ok && res.status !== 404) {
       this.logger.error(`Delete user ${id} failed: ${res.status} ${await res.text()}`);
+      throw new BadGatewayException('Identity provider unavailable');
     }
   }
 

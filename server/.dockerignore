@@ -2,3 +2,5 @@ node_modules
 dist
 .env
 *.tsbuildinfo
+# Uploaded documents of a local (non-Docker) run
+storage

@@ -33,7 +33,7 @@
               </div>
               <div>
                 <dt>Rolle</dt>
-                <dd>{{ roles().join(', ') || '–' }}</dd>
+                <dd>{{ role() || '–' }}</dd>
               </div>
               <div>
                 <dt>Dabei seit</dt>
@@ -104,13 +104,9 @@
               </dd>
             </div>
             <div class="rows__item">
-              <dt>Rollen</dt>
+              <dt>Rolle</dt>
               <dd class="roles">
-                @for (role of roles(); track role) {
-                  <span class="role">{{ role }}</span>
-                } @empty {
-                  –
-                }
+                <span class="role">{{ role() }}</span>
               </dd>
             </div>
           </dl>

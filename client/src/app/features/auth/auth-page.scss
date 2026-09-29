@@ -420,6 +420,12 @@
   line-height: 1.45;
 }
 
+.alert--info {
+  border-color: var(--lime-deep);
+  background-color: rgba(200, 241, 105, 0.3);
+  color: var(--paper-body);
+}
+
 // ---------- Fields ----------
 
 .row {

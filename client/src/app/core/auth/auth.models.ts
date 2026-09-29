@@ -18,13 +18,18 @@ export interface Session {
   refreshExpiresAt: number;
 }
 
-/** Response of GET /api/users/me */
+export type UserRole = 'user' | 'admin';
+
+/** Response of GET /api/users/me, also one entry of GET /api/users */
 export interface CurrentUser {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  roles: string[];
+  role: UserRole;
+  /** false until an admin has approved the account; such users cannot sign in */
+  approved: boolean;
+  approvedAt: string | null;
   createdAt: string;
 }
 

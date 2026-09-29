@@ -1,0 +1,145 @@
+@let s = source();
+
+<div class="type" [attr.data-type]="s.type" aria-hidden="true">
+  <app-icon [name]="icon()" [size]="18" />
+</div>
+
+<div class="main">
+  <div class="title">
+    @if (s.type === 'url' && s.url) {
+      <a class="title__text" [href]="s.url" target="_blank" rel="noopener noreferrer">
+        {{ s.title }}
+        <app-icon name="external" [size]="14" />
+      </a>
+    } @else {
+      <span class="title__text">{{ s.title }}</span>
+    }
+  </div>
+
+  <div class="meta">
+    <span class="chip">{{ categoryLabel(s.category) }}</span>
+    @if (s.type === 'url' && s.url !== s.title) {
+      <span class="meta__url">{{ s.url }}</span>
+    }
+    @for (part of meta(); track part) {
+      <span>{{ part }}</span>
+    }
+    <span class="meta__date">{{ dateLabel() }}</span>
+  </div>
+
+  @if (s.type === 'text' && s.excerpt) {
+    <p class="excerpt">{{ s.excerpt }}</p>
+  }
+
+  @if (s.status === 'failed' && s.error) {
+    <p class="problem">
+      <app-icon name="alert" [size]="15" />
+      {{ s.error }}
+    </p>
+  }
+</div>
+
+<div class="side">
+  <span class="status" [attr.data-status]="s.status" [class.is-paused]="s.status === 'embedding' && vectorsPaused()">
+    @if (s.status === 'queued' || s.status === 'processing') {
+      <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+    } @else if (s.status === 'embedding') {
+      <app-icon name="clock" [size]="14" />
+    } @else if (s.status === 'ready') {
+      <app-icon name="check" [size]="14" [strokeWidth]="2.2" />
+    } @else {
+      <app-icon name="alert" [size]="14" />
+    }
+    {{ status() }}
+  </span>
+
+  <div class="actions">
+    @if (s.status === 'failed' || s.type === 'url') {
+      <button
+        type="button"
+        class="icon-btn"
+        [attr.aria-label]="(s.type === 'url' ? 'Neu abrufen: ' : 'Erneut verarbeiten: ') + s.title"
+        [title]="s.type === 'url' ? 'Neu abrufen' : 'Erneut verarbeiten'"
+        [disabled]="busy() || s.status === 'queued' || s.status === 'processing'"
+        (click)="reprocess()"
+      >
+        <app-icon name="refresh" [size]="18" />
+      </button>
+    }
+    @if (s.type === 'document') {
+      <button type="button" class="icon-btn" [attr.aria-label]="'Herunterladen: ' + s.title" title="Herunterladen" [disabled]="busy()" (click)="download()">
+        <app-icon name="download" [size]="18" />
+      </button>
+    }
+    <button
+      type="button"
+      class="icon-btn js-edit"
+      [attr.aria-label]="'Bearbeiten: ' + s.title"
+      title="Bearbeiten"
+      [attr.aria-expanded]="editing()"
+      [disabled]="busy()"
+      (click)="editing() ? cancelEdit() : startEdit()"
+    >
+      <app-icon name="edit" [size]="18" />
+    </button>
+    <button
+      type="button"
+      class="icon-btn is-danger js-delete"
+      [attr.aria-label]="'Löschen: ' + s.title"
+      title="Löschen"
+      [attr.aria-expanded]="confirming()"
+      [disabled]="busy()"
+      (click)="confirming() ? cancelDelete() : askDelete()"
+    >
+      <app-icon name="trash" [size]="18" />
+    </button>
+  </div>
+</div>
+
+@if (error(); as message) {
+  <div class="alert wide" role="alert">
+    <app-icon name="alert" [size]="18" />
+    <span>{{ message }}</span>
+  </div>
+}
+
+@if (editing()) {
+  <form class="edit wide" [formGroup]="form" (ngSubmit)="saveEdit()" (keydown.escape)="cancelEdit()">
+    <label class="field edit__title">
+      <span class="field__label">Titel</span>
+      <input class="input" formControlName="title" maxlength="300" autocomplete="off" />
+    </label>
+    <label class="field">
+      <span class="field__label">Kategorie</span>
+      <select class="select" formControlName="category">
+        @for (c of categories; track c.value) {
+          <option [value]="c.value">{{ c.label }}</option>
+        }
+      </select>
+    </label>
+    <div class="edit__actions">
+      <button type="button" class="pill" (click)="cancelEdit()">Abbrechen</button>
+      <button type="submit" class="pill pill--primary" [disabled]="busy() || form.invalid">Speichern</button>
+    </div>
+  </form>
+}
+
+@if (confirming()) {
+  <div class="confirm wide" role="group" aria-label="Löschen bestätigen" (keydown.escape)="cancelDelete()">
+    <p class="confirm__text">
+      <strong>{{ name() }}</strong> löschen?
+      {{ s.type === 'document' ? 'Die Datei und alle daraus gelesenen Abschnitte werden entfernt.' : 'Alle daraus gelesenen Abschnitte werden entfernt.' }}
+    </p>
+    <div class="confirm__actions">
+      <button type="button" class="pill js-cancel-delete" (click)="cancelDelete()">Abbrechen</button>
+      <button type="button" class="pill pill--danger" [disabled]="busy()" (click)="confirmDelete()">
+        @if (busy()) {
+          <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        } @else {
+          <app-icon name="trash" [size]="18" />
+        }
+        Löschen
+      </button>
+    </div>
+  </div>
+}

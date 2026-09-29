@@ -1,0 +1,230 @@
+@use 'mixins' as *;
+@use '../settings-ui' as ui;
+
+@include ui.buttons;
+@include ui.feedback;
+@include ui.confirm;
+@include ui.forms;
+@include ui.chip;
+
+:host {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-areas:
+    'type main'
+    '. side';
+  column-gap: 14px;
+  padding: 14px 10px;
+  margin: 0 -10px;
+  border-radius: 16px;
+  border-bottom: 1px solid var(--surface-border);
+
+  &:last-child {
+    border-bottom-color: transparent;
+  }
+
+  &.is-confirming {
+    background-color: rgba(255, 122, 85, 0.05);
+  }
+
+  &.is-editing {
+    background-color: var(--row-active);
+  }
+
+  @media (min-width: 720px) {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas: 'type main side';
+    column-gap: 16px;
+  }
+}
+
+// Alerts, edit form and confirmation get a full-width row of their own
+.wide {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+
+  @media (min-width: 720px) {
+    margin-left: 56px;
+  }
+}
+
+.type {
+  grid-area: type;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface-raised);
+  color: var(--ink-soft);
+
+  :host(.is-failed) & {
+    border-color: rgba(255, 122, 85, 0.45);
+    color: var(--coral);
+  }
+}
+
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.title__text {
+  display: inline;
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+
+  app-icon {
+    display: inline-flex;
+    margin-left: 4px;
+    vertical-align: -1px;
+    color: var(--ink-muted);
+  }
+}
+
+a.title__text:hover {
+  color: var(--lime);
+
+  app-icon {
+    color: var(--lime);
+  }
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.meta__url {
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta__date {
+  white-space: nowrap;
+}
+
+.excerpt {
+  display: -webkit-box;
+  margin: 2px 0 0;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--coral);
+
+  app-icon {
+    margin-top: 2px;
+  }
+}
+
+.side {
+  grid-area: side;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+
+  @media (min-width: 720px) {
+    justify-content: flex-end;
+    align-self: start;
+    margin-top: 0;
+  }
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border-strong);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+
+  &[data-status='ready'] {
+    border-color: var(--lime-deep);
+    color: var(--lime);
+  }
+
+  &[data-status='failed'] {
+    border-color: rgba(255, 122, 85, 0.55);
+    color: var(--coral);
+  }
+
+  &[data-status='queued'],
+  &[data-status='processing'] {
+    color: var(--ink);
+  }
+
+  &.is-paused {
+    border-style: dashed;
+    color: var(--ink-muted);
+  }
+
+  @media (min-width: 720px) {
+    margin-right: 6px;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface);
+
+  @media (min-width: 720px) {
+    grid-template-columns: minmax(0, 1fr) 200px;
+    align-items: end;
+  }
+}
+
+.edit__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  @media (min-width: 720px) {
+    grid-column: 1 / -1;
+  }
+}

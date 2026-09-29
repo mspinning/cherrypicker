@@ -1,0 +1,10 @@
+@use 'mixins' as *;
+@use '../settings-ui' as ui;
+
+@include ui.section;
+@include ui.buttons;
+@include ui.feedback;
+
+.state {
+  padding: 32px 0;
+}

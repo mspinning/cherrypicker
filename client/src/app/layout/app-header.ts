@@ -1,12 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { initialsOf } from '../core/auth/user-display';
+import { UserAdminService } from '../core/users/user-admin.service';
+import { Icon } from '../shared/icon';
 
 @Component({
   selector: 'app-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, Icon],
   template: `
     <header class="header">
       <a class="brand" routerLink="/" aria-label="Cherrypick – Heute">
@@ -19,19 +21,44 @@ import { initialsOf } from '../core/auth/user-display';
         </svg>
         <span class="brand__name">Cherry<em>pick</em></span>
       </a>
-      <a
-        class="avatar"
-        routerLink="/profile"
-        routerLinkActive="is-active"
-        [attr.aria-label]="auth.displayName() ? 'Profil von ' + auth.displayName() : 'Profil'"
-      >
-        {{ initials() || '··' }}
-      </a>
+      <div class="actions">
+        @if (auth.isAdmin()) {
+          <a class="round settings" routerLink="/settings" routerLinkActive="is-active" [attr.aria-label]="settingsLabel()">
+            <app-icon name="settings" [size]="20" />
+            @if (pendingCount()) {
+              <span class="badge" aria-hidden="true">{{ pendingCount() }}</span>
+            }
+          </a>
+        }
+        <a
+          class="round avatar"
+          routerLink="/profile"
+          routerLinkActive="is-active"
+          [attr.aria-label]="auth.displayName() ? 'Profil von ' + auth.displayName() : 'Profil'"
+        >
+          {{ initials() || '··' }}
+        </a>
+      </div>
     </header>
   `,
   styleUrl: './app-header.scss',
 })
 export class AppHeader {
   protected readonly auth = inject(AuthService);
+  private readonly userAdmin = inject(UserAdminService);
+
   protected readonly initials = computed(() => initialsOf(this.auth.user()));
+  protected readonly pendingCount = computed(() => this.userAdmin.pending().length);
+  protected readonly settingsLabel = computed(() => {
+    const n = this.pendingCount();
+    if (!n) return 'Einstellungen';
+    return `Einstellungen – ${n} ${n === 1 ? 'Konto wartet' : 'Konten warten'} auf Freigabe`;
+  });
+
+  constructor() {
+    // Admins see at a glance whether someone waits for approval
+    effect(() => {
+      if (this.auth.isAdmin()) untracked(() => this.userAdmin.load().subscribe({ error: () => {} }));
+    });
+  }
 }

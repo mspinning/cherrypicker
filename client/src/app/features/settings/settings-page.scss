@@ -1,0 +1,144 @@
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  flex-grow: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.page {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 16px max(40px, env(safe-area-inset-bottom));
+
+  @include desktop {
+    padding: 36px 48px 56px;
+  }
+}
+
+// ---------- Head (same as the profile page) ----------
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+
+  @include desktop {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.head__title {
+  margin: 0;
+  @include serif;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+
+  @include desktop {
+    order: -1;
+    font-size: 34px;
+  }
+}
+
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--ink-muted);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+// ---------- Tabs ----------
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 24px;
+  padding: 4px;
+  border: 1px solid var(--surface-border);
+  border-radius: 99px;
+  background-color: var(--surface);
+
+  @media (min-width: 720px) {
+    width: auto;
+    display: inline-flex;
+  }
+
+  @include desktop {
+    margin-bottom: 32px;
+  }
+}
+
+.tab {
+  flex: 1;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  border-radius: 99px;
+  color: var(--ink-muted);
+  font-size: 14.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &.is-active {
+    background-color: var(--track);
+    color: var(--ink);
+
+    app-icon {
+      color: var(--lime);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 2px;
+  }
+}
+
+.tab__badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  background-color: var(--coral);
+  color: var(--paper-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}

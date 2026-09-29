@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import configuration, { AppConfig } from './config/configuration';
 import { HealthController } from './health/health.controller';
 import { KeycloakModule } from './keycloak/keycloak.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     KeycloakModule,
     UsersModule,
     AuthModule,
+    KnowledgeModule,
   ],
   controllers: [HealthController],
 })

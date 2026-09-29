@@ -13,7 +13,7 @@ import {
 import { RouterLink } from '@angular/router';
 import gsap from 'gsap';
 import { AuthService } from '../../core/auth/auth.service';
-import { avatarColorOf, initialsOf, visibleRoles } from '../../core/auth/user-display';
+import { avatarColorOf, initialsOf, roleLabel } from '../../core/auth/user-display';
 import { Icon } from '../../shared/icon';
 import { TodayStore } from '../today/today.store';
 
@@ -39,9 +39,9 @@ export class ProfilePage {
 
   readonly initials = computed(() => initialsOf(this.user()));
   readonly avatarColor = computed(() => avatarColorOf(this.user()));
-  readonly roles = computed(() => {
+  readonly role = computed(() => {
     const u = this.user();
-    return u ? visibleRoles(u) : [];
+    return u ? roleLabel(u.role) : '';
   });
   readonly memberSince = computed(() => {
     const u = this.user();

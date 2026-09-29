@@ -18,7 +18,21 @@ export type IconName =
   | 'lock'
   | 'alert'
   | 'logout'
-  | 'copy';
+  | 'copy'
+  | 'settings'
+  | 'users'
+  | 'trash'
+  | 'knowledge'
+  | 'building'
+  | 'link'
+  | 'file'
+  | 'upload'
+  | 'text'
+  | 'refresh'
+  | 'download'
+  | 'search'
+  | 'plus'
+  | 'external';
 
 /** Inline stroke icons (24px grid, currentColor). */
 @Component({
@@ -108,6 +122,62 @@ export type IconName =
         @case ('copy') {
           <svg:rect x="8.5" y="8.5" width="11" height="11" rx="2.5" />
           <svg:path d="M15.5 8.5V6.5A2 2 0 0 0 13.5 4.5h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+        }
+        @case ('settings') {
+          <svg:path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+          <svg:circle cx="15" cy="7" r="2.2" />
+          <svg:circle cx="9" cy="17" r="2.2" />
+        }
+        @case ('trash') {
+          <svg:path d="M4.5 7h15M10 4h4M6.5 7l.8 11.5A2 2 0 0 0 9.3 20.5h5.4a2 2 0 0 0 2-1.9L17.5 7" />
+          <svg:path d="M10 11v5.5M14 11v5.5" />
+        }
+        @case ('knowledge') {
+          <svg:path d="M12 6.5C10.3 5.2 7.8 4.5 4 4.5v13c3.8 0 6.3.7 8 2 1.7-1.3 4.2-2 8-2v-13c-3.8 0-6.3.7-8 2z" />
+          <svg:path d="M12 6.5v13" />
+        }
+        @case ('building') {
+          <svg:path d="M4.5 20.5v-14l7-3v17M11.5 8.5h8v12" />
+          <svg:path d="M3 20.5h18M8 9v.01M8 12.5v.01M8 16v.01M15.5 12.5v.01M15.5 16v.01" />
+        }
+        @case ('link') {
+          <svg:path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+          <svg:path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+        }
+        @case ('file') {
+          <svg:path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <svg:path d="M14 3v5h5" />
+        }
+        @case ('upload') {
+          <svg:path d="M12 15.5V4M7.5 8.5 12 4l4.5 4.5" />
+          <svg:path d="M4.5 14.5v3a2.5 2.5 0 0 0 2.5 2.5h10a2.5 2.5 0 0 0 2.5-2.5v-3" />
+        }
+        @case ('text') {
+          <svg:path d="M4.5 6h15M4.5 10.5h15M4.5 15h10M4.5 19.5h7" />
+        }
+        @case ('refresh') {
+          <svg:path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+          <svg:path d="M19.5 4.5v4h-4" />
+        }
+        @case ('download') {
+          <svg:path d="M12 4v11.5M7.5 11 12 15.5l4.5-4.5" />
+          <svg:path d="M4.5 19.5h15" />
+        }
+        @case ('search') {
+          <svg:circle cx="11" cy="11" r="6.5" />
+          <svg:path d="m20 20-4.2-4.2" />
+        }
+        @case ('plus') {
+          <svg:path d="M12 5v14M5 12h14" />
+        }
+        @case ('external') {
+          <svg:path d="M14 4.5h5.5V10M19.5 4.5 11 13" />
+          <svg:path d="M18 14v3.5a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2H10" />
+        }
+        @case ('users') {
+          <svg:circle cx="9" cy="8.5" r="3.5" />
+          <svg:path d="M2.5 19.5c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5" />
+          <svg:path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 14.4c2 .7 3.4 2.5 4 5.1" />
         }
       }
     </svg>

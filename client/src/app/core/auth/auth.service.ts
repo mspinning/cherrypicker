@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, finalize, map, shareReplay, switchMap, tap, throwError, catchError } from 'rxjs';
+import { Observable, finalize, map, of, shareReplay, switchMap, tap, throwError, catchError } from 'rxjs';
 import { CurrentUser, RegisterRequest, Session, TokenResponse } from './auth.models';
 
 export const API_URL = '/api';
@@ -25,6 +25,7 @@ export class AuthService {
     const u = this.user();
     return u ? `${u.firstName} ${u.lastName}`.trim() || u.email : '';
   });
+  readonly isAdmin = computed(() => this.user()?.role === 'admin');
 
   private refreshInFlight: Observable<Session> | null = null;
   private meInFlight: Observable<CurrentUser> | null = null;
@@ -46,11 +47,14 @@ export class AuthService {
     );
   }
 
-  /** Creates the account, then signs in with the same credentials. */
-  register(request: RegisterRequest): Observable<CurrentUser> {
+  /**
+   * Creates the account and signs in with the same credentials – unless an
+   * admin still has to approve it, then it emits `null`.
+   */
+  register(request: RegisterRequest): Observable<CurrentUser | null> {
     return this.http
       .post<CurrentUser>(`${API_URL}/auth/register`, request)
-      .pipe(switchMap(() => this.login(request.email, request.password)));
+      .pipe(switchMap((user) => (user.approved ? this.login(request.email, request.password) : of(null))));
   }
 
   /** Shared while in flight, so shell and pages can both ask for it. */
@@ -74,7 +78,8 @@ export class AuthService {
         map(toSession),
         tap((next) => this.storeSession(next)),
         catchError((err: unknown) => {
-          if (err instanceof HttpErrorResponse && (err.status === 400 || err.status === 401)) this.endSession();
+          // 403: the account is not approved (any more)
+          if (err instanceof HttpErrorResponse && [400, 401, 403].includes(err.status)) this.endSession();
           return throwError(() => err);
         }),
         finalize(() => (this.refreshInFlight = null)),
