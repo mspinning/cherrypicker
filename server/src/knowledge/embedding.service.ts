@@ -79,6 +79,9 @@ export class EmbeddingService {
     } | null;
     if (!response.ok || !body?.data) {
       const reason = body?.error?.message ?? `HTTP ${response.status}`;
+      if (!this.cfg.virtualKey && /virtual key/i.test(reason)) {
+        throw new Error('Bifrost verlangt einen Virtual Key: in der Bifrost-UI anlegen und als BIFROST_VIRTUAL_KEY in .env eintragen.');
+      }
       throw new Error(`Bifrost (${this.cfg.model}): ${reason}`);
     }
 

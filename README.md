@@ -9,6 +9,7 @@ Schritt 1: Infrastruktur und Benutzerverwaltung (Registrierung und Anmeldung).
 | `postgres` | `pgvector/pgvector:pg17`         | 5432 | CRM-Datenbank (`vector` aktiv) und Keycloak-DB    |
 | `keycloak` | `quay.io/keycloak/keycloak:26.3` | 8080 | Identity Provider, Realm `crm` wird automatisch importiert |
 | `server`   | `./server` (NestJS 11, Node 22)  | 3000 | REST-API                                          |
+| `client`   | `./client` (Angular 22, Caddy 2) | 80/443 | Web-App und Proxy für `/api`                    |
 
 ## Start
 
@@ -17,9 +18,24 @@ cp .env.example .env   # Passwörter und Client-Secret anpassen
 docker compose up -d --build
 ```
 
-- API: http://localhost:3000/api
+- Web-App: http://localhost
+- API: http://localhost:3000/api (oder über Caddy: http://localhost/api)
 - Swagger: http://localhost:3000/api/docs
 - Keycloak-Admin: http://localhost:8080 (Zugangsdaten aus `.env`)
+
+## Auslieferung des Frontends
+
+```
+Browser ──► Caddy (client) ──┬─ /api/*  ──► server:3000
+                             └─ sonst   ──► /srv (Angular-Build)
+```
+
+- `client/Dockerfile` baut die App mit `ng build` und kopiert `dist/client/browser` in ein `caddy:2-alpine`-Image. Die Konfiguration steht in `client/Caddyfile`.
+- Browser und API teilen sich eine Origin, genau wie beim Dev-Server mit `proxy.conf.json`. Der Client ruft weiter relativ `/api` auf, CORS spielt keine Rolle.
+- Unbekannte Pfade (`/settings/users` usw.) liefern `index.html`, das Routing übernimmt Angular.
+- Gebündelte Dateien mit Hash im Namen (`main-XFNATKPP.js`) cacht der Browser ein Jahr. `index.html` und die Favicons prüft er bei jedem Aufruf neu. So greift ein neuer Build sofort.
+- **HTTPS:** `SITE_ADDRESS` in `.env` auf die Domain setzen (z. B. `crm.example.com`). Caddy holt und erneuert die Zertifikate dann selbst, die Ports 80 und 443 müssen dafür von außen erreichbar sein. Die Zertifikate liegen im Volume `caddy-data`.
+- Der Server ist weiter direkt auf Port 3000 erreichbar (Swagger, `curl`). In Produktion reicht Caddy als einziger offener Eingang, das Port-Mapping von `server` kann dann weg.
 
 ## Architektur Auth
 
@@ -77,12 +93,12 @@ queued ──► processing ──► embedding ──► ready
 
 Die Embeddings laufen über Bifrost (`POST /v1/embeddings`). Bifrost hat Governance aktiv, der Server braucht deshalb einen Virtual Key.
 
-1. Modell bereitstellen, z. B. lokal mit `ollama pull bge-m3` (mehrsprachig, 1024 Dimensionen).
-2. In der Bifrost-UI (http://localhost:8081) den Provider einrichten und einen Virtual Key anlegen, der das Modell nutzen darf.
+1. Modell bereitstellen, z. B. lokal mit `ollama pull bge-m3` (mehrsprachig, 1024 Dimensionen, in Bifrost `ollama/bge-m3:latest`).
+2. In der Bifrost-UI (http://localhost:8081) den Provider einrichten und einen Virtual Key anlegen, der das Modell nutzen darf. Bei Ollama danach „Refresh model list“ ausführen, damit Bifrost das neue Modell kennt.
 3. In `.env` setzen und den Server neu starten:
    ```bash
    BIFROST_VIRTUAL_KEY=...
-   EMBEDDING_MODEL=ollama/bge-m3      # oder z. B. openai/text-embedding-3-small
+   EMBEDDING_MODEL=ollama/bge-m3:latest   # Name genau wie in Ollama gelistet, sonst lehnt der Virtual Key ab; oder z. B. openai/text-embedding-3-small
    EMBEDDING_DIMENSIONS=1024          # muss zum Modell passen (text-embedding-3-small: 1536)
    ```
 

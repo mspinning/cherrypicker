@@ -54,6 +54,7 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
   private again = false;
   private stopped = false;
   private embedBackoffMs = 0;
+  private lastEmbedError: string | null = null;
   private embedBlockedUntil = 0;
 
   constructor(
@@ -280,10 +281,19 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
         }),
       );
     } catch (err) {
+      const message = (err as Error).message;
       this.embedBackoffMs = Math.min(BACKOFF_MAX_MS, Math.max(BACKOFF_MIN_MS, this.embedBackoffMs * 2));
       this.embedBlockedUntil = Date.now() + this.embedBackoffMs;
-      this.logger.warn(`Embedding paused for ${this.embedBackoffMs / 1000}s: ${(err as Error).message}`);
+      // Once per cause, not on every retry: the settings page shows the state anyway
+      if (message !== this.lastEmbedError) {
+        this.logger.warn(`Embedding paused, chunks wait for their vectors and are retried: ${message}`);
+        this.lastEmbedError = message;
+      }
       return false;
+    }
+    if (this.lastEmbedError) {
+      this.logger.log('Embedding works again, catching up on waiting chunks');
+      this.lastEmbedError = null;
     }
     this.embedBackoffMs = 0;
 

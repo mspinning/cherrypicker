@@ -108,7 +108,7 @@ services:
       # Virtual key from the Bifrost UI (governance is on, calls without it get 401)
       BIFROST_VIRTUAL_KEY: ${BIFROST_VIRTUAL_KEY:-}
       # Knowledge base: model for embeddings and its vector size (see README)
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-ollama/bge-m3}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-ollama/bge-m3:latest}
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
       STORAGE_DIR: /app/storage
       KNOWLEDGE_MAX_UPLOAD_MB: ${KNOWLEDGE_MAX_UPLOAD_MB:-50}
@@ -124,7 +124,27 @@ services:
       bifrost:
         condition: service_healthy
 
+  client:
+    # Caddy: serves the Angular build and proxies /api to the server (client/Caddyfile)
+    build:
+      context: ./client
+    restart: unless-stopped
+    environment:
+      # ":80" = plain HTTP; a domain (crm.example.com) enables automatic HTTPS
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${WEB_HTTP_PORT:-80}:80"
+      - "${WEB_HTTPS_PORT:-443}:443"
+    volumes:
+      # TLS certificates and keys, must survive container rebuilds
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - server
+
 volumes:
   postgres-data:
   bifrost-data:
   server-storage:
+  caddy-data:
+  caddy-config:

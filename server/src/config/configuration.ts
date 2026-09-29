@@ -28,7 +28,7 @@ export interface AppConfig {
     baseUrl: string;
     /** Bifrost virtual key, sent as x-bf-vk */
     virtualKey: string;
-    /** Bifrost model id, e.g. "ollama/bge-m3" or "openai/text-embedding-3-small" */
+    /** Bifrost model id, e.g. "ollama/bge-m3:latest" or "openai/text-embedding-3-small" */
     model: string;
     /** Must match what the model returns; fixes the size of the vector column */
     dimensions: number;
@@ -70,7 +70,7 @@ export default (): AppConfig => ({
   embedding: {
     baseUrl: (process.env.BIFROST_URL ?? '').replace(/\/$/, ''),
     virtualKey: process.env.BIFROST_VIRTUAL_KEY ?? '',
-    model: process.env.EMBEDDING_MODEL ?? 'ollama/bge-m3',
+    model: process.env.EMBEDDING_MODEL ?? 'ollama/bge-m3:latest',
     dimensions: EMBEDDING_DIMENSIONS,
   },
 });

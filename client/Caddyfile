@@ -1,0 +1,34 @@
+# Serves the Angular build and proxies /api to the NestJS server, so the
+# browser sees a single origin (same as proxy.conf.json during ng serve).
+#
+# SITE_ADDRESS ":80" = plain HTTP on any host. With a domain such as
+# "crm.example.com", Caddy fetches and renews TLS certificates on its own
+# (needs ports 80 and 443 reachable from the internet).
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy server:3000
+	}
+
+	handle {
+		root * /srv
+
+		# Hashed bundles (main-XFNATKPP.js, chunk-B_8-8WGt.js) never change,
+		# everything else (index.html, favicons) is revalidated on every load
+		@hashed path_regexp ^/(main|chunk|styles|polyfills)-[\w-]{8}\.(js|css)$
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		header ?Cache-Control no-cache
+
+		# Client-side routes (/settings/users, ...) fall back to the app
+		try_files {path} /index.html
+		file_server
+	}
+}
