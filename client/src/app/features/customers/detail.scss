@@ -1,0 +1,385 @@
+// Shared by the company and the contact view
+@use 'mixins' as *;
+@use '../settings/settings-ui' as ui;
+
+@include ui.buttons;
+@include ui.feedback;
+@include ui.confirm;
+
+:host {
+  display: block;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 20px 18px 24px;
+  border: 1px solid var(--surface-border);
+  border-radius: 26px;
+  background-color: var(--surface);
+
+  @include desktop {
+    gap: 26px;
+    padding: 30px 32px;
+    border-radius: 30px;
+  }
+}
+
+.to-list {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-size: 14px;
+  color: var(--ink-muted);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  // Desktop: the list stays visible next to a company, only a contact needs the way back
+  @include desktop {
+    :host(app-company-view) & {
+      display: none;
+    }
+  }
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+// ---------- Head ----------
+
+.head {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 44px;
+  align-items: start;
+  gap: 16px;
+
+  @include desktop {
+    grid-template-columns: 68px minmax(0, 1fr) 44px;
+    gap: 20px;
+  }
+}
+
+.badge {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  color: var(--paper-ink);
+  font-size: 18px;
+  font-weight: 600;
+
+  &.is-round {
+    border-radius: 99px;
+  }
+
+  @include desktop {
+    width: 68px;
+    height: 68px;
+    font-size: 21px;
+  }
+}
+
+.head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.head__name {
+  margin: 0;
+  @include serif;
+  font-size: 34px;
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+
+  @include desktop {
+    font-size: 42px;
+  }
+}
+
+.head__sub {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--ink-soft);
+
+  a {
+    text-decoration: none;
+  }
+}
+
+.tags,
+.topics {
+  @include reset-list;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag,
+.rel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.rel {
+  border-color: rgba(200, 241, 105, 0.45);
+  color: var(--lime);
+  font-weight: 500;
+
+  &[data-rel='prospect'] {
+    border-color: var(--border-button);
+    color: var(--ink);
+  }
+}
+
+// ---------- Confirm ----------
+
+.confirm__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--lime);
+  }
+}
+
+// ---------- Content ----------
+
+.desc {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-body);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px 24px;
+  margin: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
+
+  @media (min-width: 560px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  dt {
+    @include eyebrow(10px);
+    color: var(--ink-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink-body);
+    overflow-wrap: anywhere;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+  }
+}
+
+.story {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background-color: var(--paper);
+  color: var(--paper-ink);
+
+  .tag {
+    border-color: var(--paper-line);
+    color: var(--paper-body);
+  }
+}
+
+.story__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  @include eyebrow(10.5px);
+  color: var(--paper-label);
+}
+
+.story__text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--paper-body);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.block__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  @include eyebrow(10.5px);
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.count {
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--border-strong);
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+
+.people,
+.known {
+  @include reset-list;
+  display: flex;
+  flex-direction: column;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--surface-border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.person__link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  margin-left: -8px;
+  border-radius: 12px;
+  color: var(--ink);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--ink);
+    background-color: var(--row-muted);
+  }
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  color: var(--paper-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.person__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.person__name {
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.person__sub {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person__actions {
+  display: flex;
+  gap: 6px;
+
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+.known li {
+  padding: 6px 0;
+  font-size: 13.5px;
+  color: var(--ink-muted);
+
+  strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+}
+
+.state {
+  padding: 60px 0;
+}
+
+.loader {
+  width: 24px;
+  height: 24px;
+}

@@ -1,0 +1,144 @@
+<div class="page">
+  <div class="head">
+    <h1 class="head__title">Kunden</h1>
+    @if (summary(); as s) {
+      <p class="head__stats">
+        {{ plural(s.customers, 'Kunde', 'Kunden') }} · {{ plural(s.prospects, 'Interessent', 'Interessenten') }} ·
+        {{ plural(s.contacts, 'Kontakt', 'Kontakte') }}
+      </p>
+    }
+  </div>
+
+  <div class="layout">
+    <aside class="side" aria-label="Kundenliste">
+      <nav class="tabs" aria-label="Ansicht">
+        <a
+          class="tab"
+          routerLink="."
+          [queryParams]="{ tab: null, company: null, contact: null }"
+          queryParamsHandling="merge"
+          [class.is-active]="activeTab() === 'companies'"
+          [attr.aria-current]="activeTab() === 'companies' ? 'page' : null"
+        >
+          <app-icon name="building" [size]="17" />
+          Firmen
+        </a>
+        <a
+          class="tab"
+          routerLink="."
+          [queryParams]="{ tab: 'people', company: null, contact: null }"
+          queryParamsHandling="merge"
+          [class.is-active]="activeTab() === 'people'"
+          [attr.aria-current]="activeTab() === 'people' ? 'page' : null"
+        >
+          <app-icon name="users" [size]="17" />
+          Personen
+        </a>
+      </nav>
+
+      <label class="search">
+        <app-icon name="search" [size]="18" />
+        <span class="visually-hidden">Suchen</span>
+        <input
+          type="search"
+          [placeholder]="activeTab() === 'companies' ? 'Firma, Domain oder Person' : 'Name, E-Mail, Position oder Firma'"
+          [value]="q()"
+          (input)="onSearch($any($event.target).value)"
+        />
+      </label>
+
+      @if (activeTab() === 'companies') {
+        <div class="chips" role="group" aria-label="Beziehung">
+          <button type="button" class="chip-btn" [class.is-on]="relationship() === ''" [attr.aria-pressed]="relationship() === ''" (click)="relationship.set('')">Alle</button>
+          <button type="button" class="chip-btn" [class.is-on]="relationship() === 'customer'" [attr.aria-pressed]="relationship() === 'customer'" (click)="relationship.set('customer')">Kunden</button>
+          <button type="button" class="chip-btn" [class.is-on]="relationship() === 'prospect'" [attr.aria-pressed]="relationship() === 'prospect'" (click)="relationship.set('prospect')">Interessenten</button>
+        </div>
+      }
+
+      @if (loaded() && count()) {
+        <ul class="list">
+          @if (activeTab() === 'companies') {
+            @for (c of companies(); track c.id) {
+              <li>
+                <a
+                  class="item"
+                  routerLink="."
+                  [queryParams]="{ company: c.id, contact: null }"
+                  queryParamsHandling="merge"
+                  [class.is-selected]="c.id === company() && !contact()"
+                  [attr.aria-current]="c.id === company() ? 'true' : null"
+                >
+                  <span class="badge" [style.background-color]="colorOf(c.id)" aria-hidden="true">{{ initials(c.name) }}</span>
+                  <span class="item__main">
+                    <span class="item__name">{{ c.name }}</span>
+                    <span class="item__sub">{{ joined([c.domains[0], c.city, c.industry]) || '–' }}</span>
+                    <span class="item__meta">
+                      <span class="rel" [attr.data-rel]="c.relationship">{{ relationshipLabels[c.relationship] }}</span>
+                      {{ plural(c.contactCount, 'Kontakt', 'Kontakte') }} · {{ ago(c.lastContactAt) }}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            }
+          } @else {
+            @for (p of people(); track p.id) {
+              <li>
+                <a
+                  class="item"
+                  routerLink="."
+                  [queryParams]="{ contact: p.id, company: null }"
+                  queryParamsHandling="merge"
+                  [class.is-selected]="p.id === contact()"
+                  [attr.aria-current]="p.id === contact() ? 'true' : null"
+                >
+                  <span class="badge is-round" [style.background-color]="colorOf(p.id)" aria-hidden="true">{{ initials(p.fullName) }}</span>
+                  <span class="item__main">
+                    <span class="item__name">{{ p.fullName }}</span>
+                    <span class="item__sub">{{ joined([p.jobTitle, p.company?.name ?? 'Privat']) }}</span>
+                    <span class="item__meta">{{ p.email }}</span>
+                  </span>
+                </a>
+              </li>
+            }
+          }
+        </ul>
+        @if (hasMore()) {
+          <button type="button" class="more" [disabled]="loading()" (click)="loadMore()">Weitere laden</button>
+        }
+      } @else if (loadFailed()) {
+        <div class="empty" role="alert">
+          <p>Die Liste konnte nicht geladen werden.</p>
+          <button type="button" class="more" (click)="retry()">Erneut versuchen</button>
+        </div>
+      } @else if (loaded() && emptyCrm()) {
+        <div class="empty">
+          <app-icon name="sparkle" [size]="26" />
+          <p>
+            <strong>Noch keine Kunden im CRM.</strong><br />
+            Verbinde im Profil dein Microsoft-365-Konto und starte den Import. Kunden und Ansprechpartner aus deinen Mails landen dann
+            hier.
+          </p>
+          <a class="more" routerLink="/profile">Zum Profil</a>
+        </div>
+      } @else if (loaded()) {
+        <div class="empty"><p>Nichts gefunden.</p></div>
+      } @else {
+        <div class="empty" aria-live="polite"><span class="loader" aria-label="Wird geladen"></span></div>
+      }
+    </aside>
+
+    <div class="detail">
+      @if (contact(); as id) {
+        @for (key of [id]; track key) {
+          <app-contact-view [id]="key" [backToCompany]="!!company()" (removed)="contactRemoved(key, $event)" />
+        }
+      } @else if (company(); as id) {
+        @for (key of [id]; track key) {
+          <app-company-view [id]="key" (removed)="companyRemoved(key)" />
+        }
+      } @else if (count()) {
+        <div class="placeholder">Wähle links {{ activeTab() === 'companies' ? 'eine Firma' : 'eine Person' }}.</div>
+      }
+    </div>
+  </div>
+</div>

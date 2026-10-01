@@ -3,9 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import configuration, { AppConfig } from './config/configuration';
+import { CrmModule } from './crm/crm.module';
 import { HealthController } from './health/health.controller';
+import { MicrosoftModule } from './integrations/microsoft/microsoft.module';
 import { KeycloakModule } from './keycloak/keycloak.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { MailImportModule } from './mail-import/mail-import.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -31,6 +34,9 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     KnowledgeModule,
+    MicrosoftModule,
+    CrmModule,
+    MailImportModule,
   ],
   controllers: [HealthController],
 })

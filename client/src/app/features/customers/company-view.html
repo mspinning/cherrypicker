@@ -1,0 +1,173 @@
+@if (company(); as c) {
+  <section class="panel" aria-labelledby="company-name">
+    <a class="to-list" routerLink="." [queryParams]="{ company: null }" queryParamsHandling="merge">
+      <app-icon name="back" [size]="16" />
+      Alle Firmen
+    </a>
+
+    <div class="head">
+      <div class="badge" [style.background-color]="colorOf(c.id)" aria-hidden="true">{{ initials(c.name) }}</div>
+      <div class="head__text">
+        <h2 id="company-name" class="head__name">{{ c.name }}</h2>
+        <div class="tags">
+          <span class="rel" [attr.data-rel]="c.relationship">{{ relationshipLabels[c.relationship] }}</span>
+          @if (c.industry) {
+            <span class="tag">{{ c.industry }}</span>
+          }
+          @if (c.source === 'mail_import') {
+            <span class="tag"><app-icon name="sparkle" [size]="12" />aus Mails</span>
+          }
+        </div>
+      </div>
+      <button
+        type="button"
+        class="icon-btn is-danger"
+        aria-label="Firma löschen"
+        title="Löschen"
+        [attr.aria-expanded]="confirming()"
+        (click)="confirming() ? confirming.set(false) : askDelete()"
+      >
+        <app-icon name="trash" [size]="18" />
+      </button>
+    </div>
+
+    @if (confirming()) {
+      <div class="confirm" role="group" aria-label="Löschen bestätigen" (keydown.escape)="confirming.set(false)">
+        <div class="confirm__body">
+          <p class="confirm__text">
+            <strong>{{ c.name }}</strong> mit {{ plural(c.contacts.length, 'Ansprechpartner', 'Ansprechpartnern') }} löschen?
+          </p>
+          @if (c.domains.length) {
+            <label class="check">
+              <input type="checkbox" [checked]="ignore()" (change)="ignore.set($any($event.target).checked)" />
+              Bei künftigen Importen ignorieren ({{ c.domains.join(', ') }})
+            </label>
+          }
+        </div>
+        <div class="confirm__actions">
+          <button type="button" class="pill js-cancel" (click)="confirming.set(false)">Abbrechen</button>
+          <button type="button" class="pill pill--danger" [disabled]="busy()" (click)="confirmDelete()">Löschen</button>
+        </div>
+      </div>
+    }
+
+    @if (error(); as message) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>{{ message }}</span>
+      </div>
+    }
+
+    @if (c.description) {
+      <p class="desc">{{ c.description }}</p>
+    }
+
+    <dl class="facts">
+      @if (c.website) {
+        <div>
+          <dt>Webseite</dt>
+          <dd>
+            <a [href]="c.website" target="_blank" rel="noopener">{{ websiteLabel() }} <app-icon name="external" [size]="13" /></a>
+          </dd>
+        </div>
+      }
+      @if (c.domains.length) {
+        <div>
+          <dt>Mail-Domain</dt>
+          <dd class="mono">{{ c.domains.join(', ') }}</dd>
+        </div>
+      }
+      @if (c.phone) {
+        <div>
+          <dt>Telefon</dt>
+          <dd><a [href]="'tel:' + tel(c.phone)">{{ c.phone }}</a></dd>
+        </div>
+      }
+      @if (address()) {
+        <div>
+          <dt>Adresse</dt>
+          <dd>{{ address() }}</dd>
+        </div>
+      }
+      <div>
+        <dt>Erster Kontakt</dt>
+        <dd>{{ date(c.firstContactAt) }}</dd>
+      </div>
+      <div>
+        <dt>Letzter Kontakt</dt>
+        <dd>{{ ago(c.lastContactAt) }}</dd>
+      </div>
+    </dl>
+
+    @if (c.summary || c.topics.length) {
+      <div class="story">
+        <div class="story__title"><app-icon name="sparkle" [size]="15" />Beziehung</div>
+        @if (c.summary) {
+          <p class="story__text">{{ c.summary }}</p>
+        }
+        @if (c.topics.length) {
+          <ul class="topics" aria-label="Themen">
+            @for (t of c.topics; track t) {
+              <li class="tag">{{ t }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    <div class="block">
+      <h3 class="block__title">Ansprechpartner <span class="count">{{ c.contacts.length }}</span></h3>
+      @if (c.contacts.length) {
+        <ul class="people">
+          @for (k of c.contacts; track k.id) {
+            <li class="person">
+              <a class="person__link" routerLink="." [queryParams]="{ contact: k.id }" queryParamsHandling="merge">
+                <span class="avatar" [style.background-color]="colorOf(k.id)" aria-hidden="true">{{ initials(k.fullName) }}</span>
+                <span class="person__text">
+                  <span class="person__name">{{ k.fullName }}</span>
+                  <span class="person__sub">{{ k.jobTitle || k.email }}</span>
+                </span>
+              </a>
+              <span class="person__actions">
+                <a class="icon-btn" [href]="'mailto:' + k.email" [attr.aria-label]="'Mail an ' + k.fullName"><app-icon name="mail" [size]="17" /></a>
+                @if (k.phone || k.mobile) {
+                  <a class="icon-btn" [href]="'tel:' + tel(k.mobile || k.phone || '')" [attr.aria-label]="k.fullName + ' anrufen'">
+                    <app-icon name="call" [size]="17" />
+                  </a>
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">Noch keine Ansprechpartner.</p>
+      }
+    </div>
+
+    @if (c.knownBy.length) {
+      <div class="block">
+        <h3 class="block__title">Kontakt über</h3>
+        <ul class="known">
+          @for (k of c.knownBy; track k.userId) {
+            <li>
+              <strong>{{ k.name }}</strong> · {{ plural(k.mails, 'Mail', 'Mails') }} · zuletzt {{ ago(k.lastContactAt) }}
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <div class="block">
+      <h3 class="block__title">Deine Mails</h3>
+      <app-activity-list [activities]="c.activities" />
+      <p class="muted">Nur aus deinem Postfach, andere sehen diese Mails nicht.</p>
+    </div>
+  </section>
+} @else if (loadFailed()) {
+  <div class="state" role="alert">
+    <p>Die Firma konnte nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="load()">Erneut versuchen</button>
+  </div>
+} @else {
+  <div class="state" aria-live="polite"><span class="loader" aria-label="Wird geladen"></span></div>
+}

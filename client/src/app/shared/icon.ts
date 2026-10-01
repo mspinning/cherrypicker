@@ -32,7 +32,12 @@ export type IconName =
   | 'download'
   | 'search'
   | 'plus'
-  | 'external';
+  | 'external'
+  | 'globe'
+  | 'pin'
+  | 'inbound'
+  | 'outbound'
+  | 'sparkle';
 
 /** Inline stroke icons (24px grid, currentColor). */
 @Component({
@@ -173,6 +178,24 @@ export type IconName =
         @case ('external') {
           <svg:path d="M14 4.5h5.5V10M19.5 4.5 11 13" />
           <svg:path d="M18 14v3.5a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2H10" />
+        }
+        @case ('globe') {
+          <svg:circle cx="12" cy="12" r="9" />
+          <svg:path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" />
+        }
+        @case ('pin') {
+          <svg:path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
+          <svg:circle cx="12" cy="10" r="2.3" />
+        }
+        @case ('inbound') {
+          <svg:path d="M17.5 6.5 6.5 17.5M6.5 9v8.5H15" />
+        }
+        @case ('outbound') {
+          <svg:path d="M6.5 17.5l11-11M9 6.5h8.5V15" />
+        }
+        @case ('sparkle') {
+          <svg:path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5z" />
+          <svg:path d="M18.5 15.5c.3 1.6 1 2.3 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5z" />
         }
         @case ('users') {
           <svg:circle cx="9" cy="8.5" r="3.5" />

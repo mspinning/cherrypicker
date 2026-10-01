@@ -1,0 +1,168 @@
+<section class="panel" aria-labelledby="import-title">
+  <div class="top">
+    <div id="import-title" class="panel__eyebrow">Kunden aus Mails</div>
+    <a class="to-crm" routerLink="/customers">
+      Zu den Kunden
+      <app-icon name="arrow" [size]="16" />
+    </a>
+  </div>
+
+  <p class="lead">
+    Das CRM liest deine Mails, erkennt Kunden und Interessenten und legt Firmen und Ansprechpartner an, ohne Duplikate. Dienstleister,
+    Tools und Newsletter bleiben draußen.
+  </p>
+
+  @if (overview(); as o) {
+    @if (!o.llmConfigured) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>Auf dem Server ist noch kein Sprachmodell eingerichtet (LLM_MODEL). Ohne Modell lassen sich Kunden nicht erkennen.</span>
+      </div>
+    }
+
+    @if (active(); as job) {
+      <div class="run" aria-live="polite">
+        <div class="run__head">
+          <span class="run__title">{{ title(job) }}</span>
+          <button type="button" class="pill pill--small" [disabled]="busy()" (click)="cancel(job)">
+            <app-icon name="close" [size]="16" />
+            Abbrechen
+          </button>
+        </div>
+        <div class="run__phase">
+          <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+          {{ phase(job) }}
+        </div>
+        <div
+          class="bar"
+          role="progressbar"
+          aria-label="Fortschritt"
+          [attr.aria-valuenow]="progress() ?? undefined"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [class.is-indeterminate]="progress() === null"
+        >
+          <span class="bar__fill" [style.width.%]="progress() ?? 30"></span>
+        </div>
+        <div class="run__stats">
+          <span><strong>{{ number(job.groupsImported) }}</strong> Kunden erkannt</span>
+          <span><strong>{{ number(job.companiesCreated) }}</strong> Firmen neu</span>
+          <span><strong>{{ number(job.contactsCreated) }}</strong> Kontakte neu</span>
+        </div>
+      </div>
+    } @else {
+      <div class="modes" role="radiogroup" aria-label="Umfang des Imports">
+        <button type="button" role="radio" class="mode" [class.is-on]="mode() === 'test'" [attr.aria-checked]="mode() === 'test'" (click)="mode.set('test')">
+          <span class="mode__title">Testlauf</span>
+          <span class="mode__hint">Nur die neuesten Mails. Prüf das Ergebnis, bevor alles durchsucht wird.</span>
+        </button>
+        <button type="button" role="radio" class="mode" [class.is-on]="mode() === 'full'" [attr.aria-checked]="mode() === 'full'" (click)="mode.set('full')">
+          <span class="mode__title">Vollständig</span>
+          <span class="mode__hint">Alle Mails eines Zeitraums. Läuft im Hintergrund, auch wenn du die Seite verlässt.</span>
+        </button>
+      </div>
+
+      <div class="start">
+        @if (mode() === 'test') {
+          <label class="field">
+            <span class="field__label">Umfang</span>
+            <select class="select" (change)="testSize.set(+$any($event.target).value)">
+              @for (n of testSizes(); track n) {
+                <option [value]="n" [selected]="n === testSize()">Neueste {{ number(n) }} Mails</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <label class="field">
+            <span class="field__label">Zeitraum</span>
+            <select class="select" (change)="months.set(+$any($event.target).value)">
+              @for (m of periods; track m) {
+                <option [value]="m" [selected]="m === months()">{{ periodLabel(m) }}</option>
+              }
+            </select>
+          </label>
+        }
+        <button type="button" class="pill pill--primary" [disabled]="busy() || !o.llmConfigured" (click)="start()">
+          @if (busy()) {
+            <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+          } @else {
+            <app-icon name="sparkle" [size]="18" />
+          }
+          {{ mode() === 'test' ? 'Testlauf starten' : 'Import starten' }}
+        </button>
+      </div>
+    }
+
+    @if (error(); as message) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>{{ message }}</span>
+      </div>
+    }
+
+    @if (last(); as job) {
+      <div class="result">
+        <div class="result__head">
+          <span class="result__title">{{ title(job) }}</span>
+          <span class="result__date">{{ dateTime(job.finishedAt ?? job.createdAt) }}</span>
+        </div>
+
+        @if (job.status === 'failed') {
+          <div class="alert" role="alert">
+            <app-icon name="alert" [size]="18" />
+            <span>Abgebrochen mit Fehler: {{ job.error }}</span>
+          </div>
+        } @else if (job.status === 'cancelled') {
+          <p class="note">Abgebrochen{{ job.error ? ': ' + job.error : '' }}. Was bis dahin übernommen wurde, bleibt im CRM.</p>
+        }
+
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric__value is-lime">{{ number(job.groupsImported) }}</span>
+            <span class="metric__label">Kunden &amp; Interessenten</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value">{{ number(job.companiesCreated) }}</span>
+            <span class="metric__label">Firmen neu</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value">{{ number(job.contactsCreated) }}</span>
+            <span class="metric__label">Kontakte neu</span>
+          </div>
+          <div class="metric">
+            <span class="metric__value is-muted">{{ number(skipped(job)) }}</span>
+            <span class="metric__label">aussortiert</span>
+          </div>
+        </div>
+
+        <p class="note">
+          {{ plural(job.messagesScanned, 'Mail', 'Mails') }} gelesen · {{ plural(job.groupsTotal, 'Gegenseite', 'Gegenseiten') }}
+          @if (job.companiesUpdated || job.contactsUpdated) {
+            · {{ plural(job.companiesUpdated, 'Firma', 'Firmen') }} und {{ plural(job.contactsUpdated, 'Kontakt', 'Kontakte') }} ergänzt
+          }
+          @if (job.groupsFailed) {
+            · {{ plural(job.groupsFailed, 'Fehler', 'Fehler') }}
+          }
+          @if (job.model) {
+            · {{ job.model }}
+          }
+        </p>
+
+        @if (job.groupsTotal) {
+          <button type="button" class="pill pill--small" [attr.aria-expanded]="showResults()" (click)="showResults.set(!showResults())">
+            <app-icon [name]="showResults() ? 'close' : 'search'" [size]="16" />
+            {{ showResults() ? 'Entscheidungen ausblenden' : 'Entscheidungen ansehen' }}
+          </button>
+        }
+        @if (showResults()) {
+          <app-import-results [jobId]="job.id" />
+        }
+      </div>
+    }
+  } @else if (loadFailed()) {
+    <p class="note">Die Importe konnten nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="load()">Erneut versuchen</button>
+  } @else {
+    <span class="loader" aria-label="Wird geladen"></span>
+  }
+</section>

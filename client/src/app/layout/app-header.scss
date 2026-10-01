@@ -8,6 +8,7 @@
 }
 
 .header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,4 +127,88 @@
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1;
+}
+
+// ---------- Main navigation ----------
+
+// Phones: one round button next to the others (the brand leads to "Heute").
+// Desktop: a centered switch with labels.
+.nav {
+  display: flex;
+  margin-left: auto;
+  margin-right: 10px;
+
+  @include desktop {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    gap: 4px;
+    margin: 0;
+    padding: 4px;
+    border: 1px solid var(--surface-border);
+    border-radius: 99px;
+    background-color: var(--surface);
+  }
+}
+
+.nav__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--lime);
+    outline-offset: 3px;
+  }
+
+  @include mobile {
+    width: 44px;
+    height: 44px;
+    border-radius: 99px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--surface-raised);
+
+    &.is-home {
+      display: none;
+    }
+
+    &.is-active {
+      border-color: var(--lime);
+      color: var(--lime);
+    }
+  }
+
+  @include desktop {
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 99px;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--ink-muted);
+
+    &.is-active {
+      background-color: var(--track);
+      color: var(--ink);
+
+      app-icon {
+        color: var(--lime);
+      }
+    }
+  }
+}
+
+.nav__label {
+  @include mobile {
+    display: none;
+  }
 }

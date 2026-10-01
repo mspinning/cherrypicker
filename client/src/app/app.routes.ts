@@ -16,6 +16,12 @@ export const routes: Routes = [
       { path: '', loadComponent: () => import('./features/today/today-page').then((m) => m.TodayPage), title: 'Cherrypick – Heute' },
       { path: 'profile', loadComponent: () => import('./features/profile/profile-page').then((m) => m.ProfilePage), title: 'Cherrypick – Profil' },
       {
+        // ?company= / ?contact= select an entry, ?tab=people switches to the people list
+        path: 'customers',
+        loadComponent: () => import('./features/customers/customers-page').then((m) => m.CustomersPage),
+        title: 'Cherrypick – Kunden',
+      },
+      {
         path: 'settings',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/settings/settings-page').then((m) => m.SettingsPage),

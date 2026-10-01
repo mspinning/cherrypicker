@@ -79,6 +79,11 @@
           </a>
         </section>
 
+        <app-microsoft-panel />
+        @if (microsoft.connected()) {
+          <app-mail-import-panel />
+        }
+
         <section class="panel" aria-labelledby="account-title">
           <div id="account-title" class="panel__eyebrow">Konto</div>
           <dl class="rows">

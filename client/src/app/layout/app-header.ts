@@ -21,6 +21,22 @@ import { Icon } from '../shared/icon';
         </svg>
         <span class="brand__name">Cherry<em>pick</em></span>
       </a>
+      <nav class="nav" aria-label="Hauptmenü">
+        <a
+          class="nav__link is-home"
+          routerLink="/"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+        >
+          <app-icon name="meeting" [size]="18" />
+          <span class="nav__label">Heute</span>
+        </a>
+        <a class="nav__link" routerLink="/customers" routerLinkActive="is-active" ariaCurrentWhenActive="page" aria-label="Kunden">
+          <app-icon name="building" [size]="18" />
+          <span class="nav__label" aria-hidden="true">Kunden</span>
+        </a>
+      </nav>
       <div class="actions">
         @if (auth.isAdmin()) {
           <a class="round settings" routerLink="/settings" routerLinkActive="is-active" [attr.aria-label]="settingsLabel()">

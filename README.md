@@ -117,6 +117,76 @@ curl -X POST localhost:3000/api/knowledge/search -H "Authorization: Bearer <acce
 
 Der Server steht im selben Netz wie Postgres, Keycloak und Bifrost. Er ruft deshalb nur öffentliche Adressen ab. Die Prüfung läuft bei jedem Verbindungsaufbau, also auch nach Weiterleitungen und bei DNS-Rebinding. Private, Loopback- und Link-Local-Bereiche sind gesperrt. Dazu kommen Grenzen von 10 MB, 20 Sekunden und 5 Weiterleitungen.
 
+## Microsoft 365 und Kundenimport
+
+Im Profil verbindet jeder Nutzer sein Microsoft-365-Konto. Das CRM darf dann Mails lesen sowie Kalendertermine lesen und schreiben (delegierte Berechtigungen `Mail.Read`, `Calendars.ReadWrite`, `User.Read`, `offline_access`). Danach erkennt ein Import die Kunden in den Mails und legt Firmen und Ansprechpartner an. Unter **Kunden** (Menü oben) sind sie für alle Nutzer zu finden.
+
+### Einrichtung (einmalig)
+
+1. **App registrieren** im [Microsoft Entra Admin Center](https://entra.microsoft.com) unter „App-Registrierungen“ → „Neue Registrierung“:
+   - Kontotypen: „Nur Konten in diesem Organisationsverzeichnis“. `MICROSOFT_TENANT_ID` ist dann die Verzeichnis-ID (Mandanten-ID). Bei einer mandantenfähigen App bleibt `organizations` stehen.
+   - Umleitungs-URI, Plattform **Web**: `${APP_PUBLIC_URL}/api/integrations/microsoft/callback`, also `http://localhost/api/integrations/microsoft/callback` (Caddy) bzw. `http://localhost:4200/…` (ng serve) oder `https://crm.example.com/…`. Microsoft erlaubt `http` nur für `localhost`. Der Server nutzt genau eine URI. Steht sie nicht in `APP_PUBLIC_URL`, kann `MICROSOFT_REDIRECT_URI` sie überschreiben.
+2. Unter „Zertifikate & Geheimnisse“ einen **geheimen Clientschlüssel** anlegen und als `MICROSOFT_CLIENT_SECRET` eintragen. Er läuft ab (max. 24 Monate) und muss dann erneuert werden. Die „Anwendungs-ID (Client)“ kommt in `MICROSOFT_CLIENT_ID`.
+3. Unter „API-Berechtigungen“ → Microsoft Graph → **Delegiert**: `User.Read`, `Mail.Read`, `Calendars.ReadWrite`, `offline_access`. Dürfen Nutzer im Tenant nicht selbst zustimmen, erteilt ein Admin dort die „Administratorzustimmung“.
+4. In `.env` setzen und den Server neu bauen (`docker compose up -d --build server`):
+   ```bash
+   APP_PUBLIC_URL=http://localhost
+   MICROSOFT_CLIENT_ID=…
+   MICROSOFT_CLIENT_SECRET=…
+   MICROSOFT_TENANT_ID=…
+   INTEGRATIONS_ENCRYPTION_KEY=$(openssl rand -base64 32)   # den Wert eintragen, nicht den Befehl
+   LLM_MODEL=anthropic/claude-sonnet-5-5
+   ```
+5. **Chat-Modell in Bifrost:** Provider (z. B. Anthropic) einrichten und das Modell aus `LLM_MODEL` im selben Virtual Key wie das Embedding-Modell erlauben. Sonst antwortet Bifrost mit „Model … is not allowed for virtual key“. Lokal geht auch Ollama (`ollama/qwen3.5:latest`), das ist aber deutlich langsamer (rund 45 Sekunden pro Gegenseite) und ordnet ungenauer ein.
+
+Fehlt etwas, zeigt das Profil-Panel Admins, welche Variablen fehlen und welche Redirect-URI zu registrieren ist.
+
+### Verbindung
+
+```
+Profil ─ POST /connect ─► URL + Cookie ─► login.microsoftonline.com ─► GET /callback ─► Tokens verschlüsselt speichern ─► /profile?microsoft=connected
+```
+
+- Authorization Code Flow mit **PKCE** und Client-Secret. Der `state` ist mit AES-256-GCM verschlüsselt und enthält CRM-Nutzer, PKCE-Verifier und Ablauf (10 Minuten). Ein HttpOnly-Cookie bindet ihn an den Browser, der die Anmeldung gestartet hat. So kann niemand einem anderen einen fremden Anmeldelink unterschieben und dessen Postfach an sein eigenes CRM-Konto hängen.
+- **Tokens** (Refresh und Access) liegen nur verschlüsselt in `microsoft_connections` und verlassen den Server nie. Microsoft rotiert den Refresh-Token, der Server speichert jeweils den neuesten.
+- Ist der Refresh-Token ungültig (Zustimmung entzogen, Passwort geändert, 90 Tage Inaktivität oder geänderter `INTEGRATIONS_ENCRYPTION_KEY`), steht die Verbindung auf `reauth_required`. Das Profil zeigt dann „Neu verbinden“.
+- Ein Postfach gehört genau einem CRM-Nutzer, sonst würden seine Mails doppelt zählen.
+- **Trennen** löscht die Tokens und bricht laufende Importe ab. Importierte Kunden bleiben. Die Zustimmung selbst entfernt der Nutzer unter myapps.microsoft.com.
+
+### Erstimport
+
+```
+queued ──► scanning ──────────────────► analyzing ─────────────────────────────► done
+           │ Mail-Köpfe lesen (Graph),   │ je Gegenseite: Regeln, sonst LLM;
+           │ nach Gegenseite gruppieren  │ Kunden/Interessenten ins CRM
+           ▼                             ▼
+         failed / cancelled
+```
+
+- **Testlauf:** nur die neuesten 50 bis 1.000 Mails. Unter „Entscheidungen ansehen“ steht für jede Gegenseite, ob sie übernommen oder aussortiert wurde und warum. **Vollständig:** alle Mails der letzten 6 bis 36 Monate oder das ganze Postfach.
+- **Gegenseite** heißt eine geschäftliche Domain (`acme.de`, Subdomains zusammengefasst) oder bei Freemail (`gmx.de`, `gmail.com`, …) eine einzelne Adresse. Nicht berücksichtigt werden: eigene Adressen, Domains aller CRM-Nutzer und `MAIL_IMPORT_INTERNAL_DOMAINS` (Kollegen), automatische Absender (`noreply@`, `notifications@`, …), Entwürfe, Junk, Papierkorb und Postausgang.
+- **Regeln vor dem LLM:** bekannte Dienste (GitHub, OpenAI, Microsoft, Stripe, … in `mail-import/addresses.ts`) gelten als Dienstleister. Domains, die nur schreiben und von Outlook unter „Sonstige“ einsortiert werden, gelten als Newsletter. Frühere sichere Entscheidungen (`crm_party_decisions`) werden wiederverwendet.
+- **LLM:** liest pro Gegenseite die neuesten Mails (4 eingehende mit Signatur, 2 eigene, nur der neue Teil ohne Zitate) und Betreff und Vorschau von bis zu 15 weiteren. Es kennt die Firmen der Gruppe aus den Wissensquellen und ordnet ein: `customer`, `prospect`, `partner`, `vendor`, `notification`, `newsletter`, `internal`, `private` oder `unknown`. **Ins CRM kommen nur `customer` und `prospect` ab 60 % Sicherheit.** Wer uns etwas verkaufen will, gilt als Dienstleister, nie als Interessent. Die Antwort kommt als erzwungener Tool-Call und wird streng geprüft: Kontakte nur mit Adressen, die in den Mails vorkommen.
+- **Keine Duplikate:**
+  - Firmen werden über ihre Mail-Domain gefunden (`crm_company_domains`, Primärschlüssel), dann über den normalisierten Namen („ACME GmbH & Co. KG“ = „acme“). `acme.de` und `acme.com` mit gleichem Namen landen bei einer Firma, gleichnamige Firmen mit verschiedenen Domains nicht.
+  - Personen werden über jede ihrer Adressen gefunden, dann über den Namen innerhalb der Firma (die zweite Adresse kommt in `other_emails`).
+  - Bestehende Werte werden nie überschrieben, nur Lücken gefüllt. Interessent wird zu Kunde, nie umgekehrt. Die Zusammenfassung der Beziehung ist immer die neueste.
+  - Jede Mail wird pro Firma nur einmal als Aktivität gespeichert (unveränderliche Graph-IDs). Ein zweiter Import ergänzt nur Neues.
+  - Alle Merges laufen unter einem Advisory Lock.
+- **Erfasst** werden je Firma Name, Domains, Webseite, Branche, Beschreibung, Telefon, Adresse, Beziehung (Kunde/Interessent), Zusammenfassung, Themen sowie erster und letzter Kontakt. Je Person: Name, Position, Abteilung, Telefon, Mobil, LinkedIn, Adressen, erster und letzter Kontakt. Dazu kommen die Mails als Aktivitäten (Betreff, Vorschau, Richtung, Link zu Outlook).
+- **Datenschutz:** Firmen und Personen sehen alle CRM-Nutzer. Mail-Aktivitäten sieht nur der Postfach-Inhaber, die anderen sehen bei einer Firma nur „Kontakt über: Name · Anzahl Mails“. Mail-Texte werden nicht gespeichert, nur Betreff und Graphs Vorschauzeile (bis 300 Zeichen). Gelesene Mail-Ausschnitte gehen zur Einordnung an das konfigurierte LLM.
+- **Löschen** einer Firma entfernt ihre Personen und Aktivitäten. Mit „Bei künftigen Importen ignorieren“ merkt sich das CRM ihre Domains, kein späterer Import legt sie wieder an. Bei Privatkontakten gilt das für die Adresse.
+- Wie bei den Wissensquellen ist die Tabelle `mail_import_jobs` die Warteschlange. Nach einem Neustart beginnt ein unterbrochener Scan neu, eine laufende Analyse macht mit den offenen Gegenseiten weiter. Pro Nutzer läuft höchstens ein Import (partieller Unique-Index), insgesamt zwei gleichzeitig, je Import werden drei Gegenseiten parallel eingeordnet. Graph-Throttling (429, `Retry-After`) wird abgewartet. Antwortet das LLM mehrmals hintereinander nicht oder ist es falsch konfiguriert, bricht der Import mit einer Meldung im Profil ab.
+- Ausgelegt auf **eine** Server-Instanz, wie die Wissensquellen.
+
+### Kalender
+
+`CalendarService` (exportiert vom `MicrosoftModule`) und `/api/calendar/events` lesen Termine (Serien aufgelöst, in UTC) und legen Termine an, ändern und löschen sie, auf Wunsch mit Teams-Link und Einladungen. Das Profil zeigt die nächsten Termine. Gedacht ist das für die nächste Ausbaustufe, damit freigegebene „Termin“-Vorschläge direkt im Kalender landen.
+
+### Nächste Ausbaustufe
+
+Der regelmäßige Abgleich im Hintergrund für alle verbundenen Nutzer (neueste Mails → Vorschläge für die nächste beste Opportunity) kann auf Folgendem aufbauen: `GraphClient`, `CrmMergeService`, die Entscheidungen in `crm_party_decisions` (bekannte Dienstleister kosten keinen LLM-Aufruf), unveränderliche Mail-IDs und `MicrosoftEvents`. Für das inkrementelle Lesen bietet sich die Delta-Abfrage von Graph an (`/me/mailFolders/{id}/messages/delta`).
+
 ## Endpunkte
 
 | Methode | Pfad                 | Auth   | Body                                       |
@@ -146,6 +216,25 @@ Der Server steht im selben Netz wie Postgres, Keycloak und Bifrost. Er ruft desh
 | DELETE  | `/api/knowledge/sources/:id`               | Admin | –                                      |
 | POST    | `/api/knowledge/search`                    | Admin | `query`, `companyIds[]`, `categories[]`, `limit` |
 | POST    | `/api/knowledge/embedding/retry`           | Admin | – (Backoff überspringen)               |
+| GET     | `/api/integrations/microsoft`              | Bearer | – (Konfiguration und eigene Verbindung) |
+| POST    | `/api/integrations/microsoft/connect`      | Bearer | – (liefert `url` zur Microsoft-Anmeldung, setzt Cookie) |
+| GET     | `/api/integrations/microsoft/callback`     | –      | Redirect-Ziel von Microsoft (`code`, `state`) |
+| DELETE  | `/api/integrations/microsoft`              | Bearer | – (Verbindung trennen)                 |
+| GET     | `/api/calendar/events`                     | Bearer | Query: `from`, `to` (ISO 8601, max. 366 Tage) |
+| POST    | `/api/calendar/events`                     | Bearer | `subject`, `start`, `end`, `body`, `location`, `attendees[]`, `isOnlineMeeting` |
+| PATCH   | `/api/calendar/events/:id`                 | Bearer | wie POST, alle Felder optional         |
+| DELETE  | `/api/calendar/events/:id`                 | Bearer | –                                      |
+| GET     | `/api/mail-import`                         | Bearer | – (Modell-Status, letzte Importe)      |
+| POST    | `/api/mail-import/jobs`                    | Bearer | `mode` (`test` \| `full`), `maxMessages` (Test), `months` (Voll, leer = alles) |
+| POST    | `/api/mail-import/jobs/:id/cancel`         | Bearer | –                                      |
+| GET     | `/api/mail-import/jobs/:id/groups`         | Bearer | Query: `status`, `offset`, `limit` (Entscheidungen je Gegenseite) |
+| GET     | `/api/crm/summary`                         | Bearer | –                                      |
+| GET     | `/api/crm/companies`                       | Bearer | Query: `q`, `relationship`, `offset`, `limit` |
+| GET     | `/api/crm/companies/:id`                   | Bearer | – (mit Personen und eigenen Mails)     |
+| DELETE  | `/api/crm/companies/:id`                   | Bearer | Query: `ignore=true` (Domains künftig überspringen) |
+| GET     | `/api/crm/contacts`                        | Bearer | Query: `q`, `companyId`, `offset`, `limit` |
+| GET     | `/api/crm/contacts/:id`                    | Bearer | –                                      |
+| DELETE  | `/api/crm/contacts/:id`                    | Bearer | Query: `ignore=true` (nur Privatkontakte) |
 | GET     | `/api/health`        | –      | –                                          |
 
 ```bash

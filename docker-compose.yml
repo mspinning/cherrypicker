@@ -66,7 +66,7 @@ services:
     # Providers/keys are configured via the web UI at http://localhost:${BIFROST_PORT}
     # and persisted in the bifrost-data volume. Keys passed below can be
     # referenced there as "env.ANTHROPIC_API_KEY" instead of pasting them in.
-    image: maximhq/bifrost:v2.2.3
+    image: maximhq/bifrost:v2.2.4
     restart: unless-stopped
     environment:
       LOG_LEVEL: ${BIFROST_LOG_LEVEL:-info}
@@ -112,6 +112,17 @@ services:
       EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1024}
       STORAGE_DIR: /app/storage
       KNOWLEDGE_MAX_UPLOAD_MB: ${KNOWLEDGE_MAX_UPLOAD_MB:-50}
+      # URL the browser uses; Microsoft redirects to ${APP_PUBLIC_URL}/api/integrations/microsoft/callback
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost}
+      # Microsoft 365 (mail import, calendar): app registration in Entra ID, see README
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-organizations}
+      # Encrypts the OAuth tokens at rest (openssl rand -base64 32)
+      INTEGRATIONS_ENCRYPTION_KEY: ${INTEGRATIONS_ENCRYPTION_KEY:-}
+      # Chat model that recognizes customers in mails (via Bifrost, allowed for the virtual key)
+      LLM_MODEL: ${LLM_MODEL:-}
+      MAIL_IMPORT_INTERNAL_DOMAINS: ${MAIL_IMPORT_INTERNAL_DOMAINS:-}
     volumes:
       - server-storage:/app/storage
     ports:

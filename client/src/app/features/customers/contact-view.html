@@ -1,0 +1,119 @@
+@if (contact(); as k) {
+  <section class="panel" aria-labelledby="contact-name">
+    <a class="to-list" routerLink="." [queryParams]="{ contact: null }" queryParamsHandling="merge">
+      <app-icon name="back" [size]="16" />
+      {{ backToCompany() && k.company ? k.company.name : 'Alle Personen' }}
+    </a>
+
+    <div class="head">
+      <div class="badge is-round" [style.background-color]="colorOf(k.id)" aria-hidden="true">{{ initials(k.fullName) }}</div>
+      <div class="head__text">
+        <h2 id="contact-name" class="head__name">{{ k.fullName }}</h2>
+        <p class="head__sub">
+          {{ k.jobTitle || 'Ansprechpartner' }}
+          @if (k.company) {
+            bei
+            <a routerLink="." [queryParams]="{ company: k.company.id, contact: null }" queryParamsHandling="merge">{{ k.company.name }}</a>
+          } @else {
+            · Privatkunde
+          }
+        </p>
+      </div>
+      <button
+        type="button"
+        class="icon-btn is-danger"
+        aria-label="Kontakt löschen"
+        title="Löschen"
+        [attr.aria-expanded]="confirming()"
+        (click)="confirming() ? confirming.set(false) : askDelete()"
+      >
+        <app-icon name="trash" [size]="18" />
+      </button>
+    </div>
+
+    @if (confirming()) {
+      <div class="confirm" role="group" aria-label="Löschen bestätigen" (keydown.escape)="confirming.set(false)">
+        <div class="confirm__body">
+          <p class="confirm__text"><strong>{{ k.fullName }}</strong> aus dem CRM löschen?</p>
+          @if (!k.company) {
+            <label class="check">
+              <input type="checkbox" [checked]="ignore()" (change)="ignore.set($any($event.target).checked)" />
+              Bei künftigen Importen ignorieren
+            </label>
+          } @else {
+            <p class="muted">Ein neuer Import kann die Person wieder anlegen, solange ihre Firma Kunde ist.</p>
+          }
+        </div>
+        <div class="confirm__actions">
+          <button type="button" class="pill js-cancel" (click)="confirming.set(false)">Abbrechen</button>
+          <button type="button" class="pill pill--danger" [disabled]="busy()" (click)="confirmDelete()">Löschen</button>
+        </div>
+      </div>
+    }
+
+    @if (error(); as message) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>{{ message }}</span>
+      </div>
+    }
+
+    <dl class="facts">
+      <div>
+        <dt>E-Mail</dt>
+        <dd><a [href]="'mailto:' + k.email">{{ k.email }}</a></dd>
+      </div>
+      @if (k.otherEmails.length) {
+        <div>
+          <dt>Weitere Adressen</dt>
+          <dd>{{ k.otherEmails.join(', ') }}</dd>
+        </div>
+      }
+      @if (k.phone) {
+        <div>
+          <dt>Telefon</dt>
+          <dd><a [href]="'tel:' + tel(k.phone)">{{ k.phone }}</a></dd>
+        </div>
+      }
+      @if (k.mobile) {
+        <div>
+          <dt>Mobil</dt>
+          <dd><a [href]="'tel:' + tel(k.mobile)">{{ k.mobile }}</a></dd>
+        </div>
+      }
+      @if (k.department) {
+        <div>
+          <dt>Abteilung</dt>
+          <dd>{{ k.department }}</dd>
+        </div>
+      }
+      @if (k.linkedinUrl) {
+        <div>
+          <dt>LinkedIn</dt>
+          <dd><a [href]="k.linkedinUrl" target="_blank" rel="noopener">Profil <app-icon name="external" [size]="13" /></a></dd>
+        </div>
+      }
+      <div>
+        <dt>Erster Kontakt</dt>
+        <dd>{{ date(k.firstContactAt) }}</dd>
+      </div>
+      <div>
+        <dt>Letzter Kontakt</dt>
+        <dd>{{ ago(k.lastContactAt) }}</dd>
+      </div>
+    </dl>
+
+    <div class="block">
+      <h3 class="block__title">Deine Mails</h3>
+      <app-activity-list [activities]="k.activities" [showContact]="false" />
+      <p class="muted">Nur aus deinem Postfach, andere sehen diese Mails nicht.</p>
+    </div>
+  </section>
+} @else if (loadFailed()) {
+  <div class="state" role="alert">
+    <p>Der Kontakt konnte nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="load()">Erneut versuchen</button>
+  </div>
+} @else {
+  <div class="state" aria-live="polite"><span class="loader" aria-label="Wird geladen"></span></div>
+}

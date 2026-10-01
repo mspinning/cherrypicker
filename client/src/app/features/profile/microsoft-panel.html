@@ -1,0 +1,159 @@
+<ng-template #logo>
+  <svg class="ms-logo" viewBox="0 0 20 20" aria-hidden="true">
+    <rect x="1" y="1" width="8.5" height="8.5" fill="#F25022" />
+    <rect x="10.5" y="1" width="8.5" height="8.5" fill="#7FBA00" />
+    <rect x="1" y="10.5" width="8.5" height="8.5" fill="#00A4EF" />
+    <rect x="10.5" y="10.5" width="8.5" height="8.5" fill="#FFB900" />
+  </svg>
+</ng-template>
+
+<ng-template #permissions>
+  <ul class="perms" aria-label="Berechtigungen">
+    <li class="chip"><app-icon name="mail" [size]="14" />Mails lesen</li>
+    <li class="chip"><app-icon name="meeting" [size]="14" />Kalender lesen und schreiben</li>
+  </ul>
+</ng-template>
+
+<section class="panel" aria-labelledby="ms-title">
+  <div class="top">
+    <div id="ms-title" class="panel__eyebrow">Microsoft 365</div>
+    @if (store.connection(); as c) {
+      <span class="badge" [class.is-warn]="c.status !== 'active'">
+        <span class="badge__dot" aria-hidden="true"></span>
+        {{ c.status === 'active' ? 'Verbunden' : 'Abgelaufen' }}
+      </span>
+    }
+  </div>
+
+  @if (flash(); as f) {
+    <div class="flash" [class.is-error]="f.error" role="status">
+      <app-icon [name]="f.error ? 'alert' : 'check'" [size]="18" />
+      <span>{{ f.text }}</span>
+      <button type="button" class="flash__close" aria-label="Hinweis schließen" (click)="flash.set(null)">
+        <app-icon name="close" [size]="16" />
+      </button>
+    </div>
+  }
+
+  @if (store.status(); as s) {
+    @if (!s.configured) {
+      <p class="lead">Die Anbindung an Microsoft 365 ist auf dem Server noch nicht eingerichtet.</p>
+      @if (auth.isAdmin()) {
+        <dl class="setup">
+          <div>
+            <dt>Es fehlt</dt>
+            <dd>{{ s.missingConfig.join(', ') }}</dd>
+          </div>
+          <div>
+            <dt>Redirect-URI</dt>
+            <dd>{{ s.redirectUri }}</dd>
+          </div>
+        </dl>
+        <p class="note">Wie die App in Microsoft Entra ID registriert wird, steht in der README unter „Microsoft 365“.</p>
+      } @else {
+        <p class="note">Ein Admin muss sie zuerst einrichten.</p>
+      }
+    } @else if (s.connection; as c) {
+      <div class="account">
+        <span class="account__logo"><ng-container [ngTemplateOutlet]="logo" /></span>
+        <div class="account__text">
+          <span class="account__email">{{ c.email }}</span>
+          <span class="account__meta">{{ c.displayName ? c.displayName + ' · ' : '' }}verbunden seit {{ date(c.connectedAt) }}</span>
+        </div>
+        <button
+          type="button"
+          class="icon-btn is-danger js-disconnect"
+          aria-label="Verbindung trennen"
+          title="Verbindung trennen"
+          [attr.aria-expanded]="confirming()"
+          (click)="confirming() ? cancelDisconnect() : askDisconnect()"
+        >
+          <app-icon name="logout" [size]="18" />
+        </button>
+      </div>
+
+      @if (confirming()) {
+        <div class="confirm" role="group" aria-label="Trennen bestätigen" (keydown.escape)="cancelDisconnect()">
+          <p class="confirm__text">
+            Verbindung zu <strong>{{ c.email }}</strong> trennen? Importierte Kunden bleiben im CRM. Die Freigabe selbst entfernst
+            du in deinem Microsoft-Konto unter myapps.microsoft.com.
+          </p>
+          <div class="confirm__actions">
+            <button type="button" class="pill js-cancel" (click)="cancelDisconnect()">Abbrechen</button>
+            <button type="button" class="pill pill--danger" [disabled]="busy()" (click)="disconnect()">Trennen</button>
+          </div>
+        </div>
+      }
+
+      @if (c.status === 'reauth_required') {
+        <div class="alert" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span>Microsoft hat den Zugang beendet (z. B. nach Passwortwechsel oder langer Inaktivität). Verbinde das Konto neu.</span>
+        </div>
+        <button type="button" class="pill pill--primary" [disabled]="busy()" (click)="connect()">
+          <ng-container [ngTemplateOutlet]="logo" />
+          Neu verbinden
+        </button>
+      } @else {
+        <ng-container [ngTemplateOutlet]="permissions" />
+
+        <div class="agenda">
+          <div class="agenda__title">Nächste Termine</div>
+          @if (events(); as list) {
+            <ul class="agenda__list">
+              @for (e of list; track e.id) {
+                <li>
+                  <a class="event" [attr.href]="e.webLink" target="_blank" rel="noopener">
+                    <span class="event__when">
+                      <span>{{ day(e.start) }}</span>
+                      <span class="event__time">{{ e.isAllDay ? 'ganztägig' : time(e.start) }}</span>
+                    </span>
+                    <span class="event__main">
+                      <span class="event__subject">{{ e.subject || '(ohne Titel)' }}</span>
+                      @if (e.isOnlineMeeting || e.location) {
+                        <span class="event__where">{{ e.isOnlineMeeting ? 'Teams' : e.location }}</span>
+                      }
+                    </span>
+                  </a>
+                </li>
+              } @empty {
+                <li class="note">Keine Termine in den nächsten 7 Tagen.</li>
+              }
+            </ul>
+          } @else if (eventsFailed()) {
+            <p class="note">Die Termine konnten nicht geladen werden.</p>
+          } @else {
+            <span class="loader" aria-label="Termine werden geladen"></span>
+          }
+        </div>
+      }
+    } @else {
+      <p class="lead">
+        Verbinde dein Microsoft-365-Konto. Das CRM erkennt dann Kunden in deinen Mails und kann Termine in deinem Kalender lesen
+        und eintragen.
+      </p>
+      <ng-container [ngTemplateOutlet]="permissions" />
+      <button type="button" class="pill pill--primary ms-btn" [disabled]="busy()" (click)="connect()">
+        @if (busy()) {
+          <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+        } @else {
+          <ng-container [ngTemplateOutlet]="logo" />
+        }
+        Mit Microsoft verbinden
+      </button>
+      <p class="note">Du meldest dich direkt bei Microsoft an. Das CRM speichert nur verschlüsselte Zugangstokens, nie dein Passwort.</p>
+    }
+  } @else if (store.loadFailed()) {
+    <p class="note">Der Status konnte nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="reload()">Erneut versuchen</button>
+  } @else {
+    <span class="loader" aria-label="Wird geladen"></span>
+  }
+
+  @if (error(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" />
+      <span>{{ message }}</span>
+    </div>
+  }
+</section>

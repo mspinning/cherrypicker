@@ -1,0 +1,55 @@
+// Frame of the panels on the profile page that live in their own components
+@use 'mixins' as *;
+
+@mixin frame {
+  :host {
+    display: block;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 24px 20px;
+    border: 1px solid var(--surface-border);
+    border-radius: 26px;
+    background-color: var(--surface);
+
+    @include desktop {
+      padding: 30px 32px;
+      border-radius: 30px;
+    }
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 26px;
+  }
+
+  .panel__eyebrow {
+    @include eyebrow(11px, 0.14em);
+    color: var(--lime);
+  }
+
+  .lead {
+    margin: 0;
+    max-width: 58ch;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-body);
+  }
+
+  .note {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+
+  .pill {
+    align-self: flex-start;
+  }
+}

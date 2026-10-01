@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm';
@@ -77,6 +78,13 @@ export class UsersService implements OnApplicationBootstrap {
 
   findByKeycloakId(keycloakId: string): Promise<User | null> {
     return this.users.findOne({ where: { keycloakId } });
+  }
+
+  /** The CRM profile behind a token; gone means the account was deleted while the token was still valid. */
+  async requireByKeycloakId(keycloakId: string): Promise<User> {
+    const user = await this.findByKeycloakId(keycloakId);
+    if (!user) throw new UnauthorizedException('Account no longer exists');
+    return user;
   }
 
   findAll(): Promise<User[]> {
