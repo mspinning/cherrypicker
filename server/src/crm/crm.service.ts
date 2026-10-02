@@ -70,7 +70,7 @@ export class CrmService {
                 (SELECT count(*) FROM crm_contacts k WHERE k.company_id = c.id)::int AS contact_count
          FROM crm_companies c
          WHERE ${where}
-         ORDER BY c.last_contact_at DESC NULLS LAST, c.name, c.id
+         ORDER BY c.name, c.id
          OFFSET $3 LIMIT $4`,
         [...params, query.offset ?? 0, query.limit ?? 50],
       ),
@@ -98,7 +98,7 @@ export class CrmService {
     if (!company) throw new NotFoundException('Firma nicht gefunden');
 
     const [contacts, activities, knownBy] = await Promise.all([
-      this.contacts.find({ where: { companyId: id }, order: { lastContactAt: { direction: 'DESC', nulls: 'LAST' }, fullName: 'ASC' } }),
+      this.contacts.find({ where: { companyId: id }, order: { fullName: 'ASC', id: 'ASC' } }),
       this.activities('a.company_id = $1', [id, userId]),
       this.dataSource.query<{ user_id: string; first_name: string; last_name: string; email: string; mails: number; last_at: Date | null }[]>(
         `SELECT a.user_id, u.first_name, u.last_name, u.email, count(*)::int AS mails, max(a.occurred_at) AS last_at
@@ -167,8 +167,7 @@ export class CrmService {
       .createQueryBuilder('k')
       .leftJoinAndSelect('k.company', 'c')
       // Property paths, not columns: skip/take with a join needs them
-      .orderBy('k.lastContactAt', 'DESC', 'NULLS LAST')
-      .addOrderBy('k.fullName', 'ASC')
+      .orderBy('k.fullName', 'ASC')
       .addOrderBy('k.id', 'ASC')
       .skip(query.offset ?? 0)
       .take(query.limit ?? 50);

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, WritableSignal, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, WritableSignal, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { pastelOf } from '../../core/auth/user-display';
@@ -10,10 +10,11 @@ import { formatAgo, formatNumber, plural } from '../../shared/format';
 import { CompanyView } from './company-view';
 import { ContactView } from './contact-view';
 import { initialsOfName, joined } from './customers-format';
+import { Pager } from './pager';
 
 type Tab = 'companies' | 'people';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 const SEARCH_DELAY_MS = 250;
 
 /**
@@ -23,7 +24,7 @@ const SEARCH_DELAY_MS = 250;
 @Component({
   selector: 'app-customers-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, CompanyView, ContactView],
+  imports: [RouterLink, Icon, CompanyView, ContactView, Pager],
   templateUrl: './customers-page.html',
   styleUrl: './customers-page.scss',
   host: { '[class.has-selection]': '!!company() || !!contact()' },
@@ -32,6 +33,7 @@ export class CustomersPage {
   private readonly api = inject(CrmApi);
   private readonly router = inject(Router);
   private readonly viewport = inject(Viewport);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Query params */
   readonly tab = input<string>();
@@ -41,6 +43,8 @@ export class CustomersPage {
   readonly activeTab = computed<Tab>(() => (this.tab() === 'people' ? 'people' : 'companies'));
   readonly q = signal('');
   readonly relationship = signal<Relationship | ''>('');
+  /** 0-based */
+  readonly page = signal(0);
   readonly summary = signal<CrmSummary | null>(null);
   readonly companies = signal<CompanyListItem[]>([]);
   readonly people = signal<ContactListItem[]>([]);
@@ -50,7 +54,6 @@ export class CustomersPage {
   readonly loadFailed = signal(false);
 
   readonly count = computed(() => (this.activeTab() === 'companies' ? this.companies().length : this.people().length));
-  readonly hasMore = computed(() => this.count() < this.total());
   /** Nothing in the CRM yet (not just no search results) */
   readonly emptyCrm = computed(() => this.summary()?.companies === 0 && this.summary()?.contacts === 0);
 
@@ -61,6 +64,7 @@ export class CustomersPage {
   protected readonly colorOf = pastelOf;
   protected readonly initials = initialsOfName;
   protected readonly joined = joined;
+  protected readonly pageSize = PAGE_SIZE;
 
   private request?: Subscription;
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -68,11 +72,18 @@ export class CustomersPage {
   constructor() {
     this.loadSummary();
 
+    // Another tab, search or filter starts again on page 1
+    let lastFilter = '';
     effect(() => {
-      this.activeTab();
-      this.q();
-      this.relationship();
-      untracked(() => this.fetch(0));
+      const filter = `${this.activeTab()}|${this.q()}|${this.relationship()}`;
+      const page = this.page();
+      untracked(() => {
+        if (filter !== lastFilter) {
+          lastFilter = filter;
+          if (page !== 0) return this.page.set(0);
+        }
+        this.fetch(page);
+      });
     });
 
     // Desktop shows list and details side by side: open the first company instead of an empty half
@@ -93,32 +104,21 @@ export class CustomersPage {
     this.searchTimer = setTimeout(() => this.q.set(value.trim()), SEARCH_DELAY_MS);
   }
 
-  loadMore(): void {
-    this.fetch(this.count());
+  goTo(page: number): void {
+    this.page.set(page);
+    // Phones: the pager sits below the list, the new page starts above
+    if (!this.viewport.isDesktop()) this.host.nativeElement.querySelector('.side')?.scrollIntoView({ block: 'start' });
   }
 
   retry(): void {
     this.loadSummary();
-    this.fetch(0);
+    this.fetch(this.page());
   }
 
-  /** After a delete in the detail pane; its people went with it */
-  companyRemoved(id: string): void {
-    this.companies.update((list) => list.filter((c) => c.id !== id));
-    this.people.update((list) => list.filter((p) => p.company?.id !== id));
-    if (this.activeTab() === 'companies') this.total.update((n) => Math.max(0, n - 1));
-    this.afterRemove({ company: null, contact: null });
-  }
-
-  contactRemoved(id: string, companyId: string | null): void {
-    this.people.update((list) => list.filter((p) => p.id !== id));
-    this.companies.update((list) => list.map((c) => (c.id === companyId ? { ...c, contactCount: Math.max(0, c.contactCount - 1) } : c)));
-    if (this.activeTab() === 'people') this.total.update((n) => Math.max(0, n - 1));
-    this.afterRemove({ contact: null });
-  }
-
-  private afterRemove(params: Record<string, null>): void {
+  /** After a delete in the detail pane: reload the page, so it fills up to 10 again (its people went with a company) */
+  removed(params: Record<string, null>): void {
     this.loadSummary();
+    this.fetch(this.page());
     void this.router.navigate([], { queryParams: params, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
@@ -126,14 +126,19 @@ export class CustomersPage {
     this.api.summary().subscribe({ next: (summary) => this.summary.set(summary), error: () => {} });
   }
 
-  private fetch(offset: number): void {
+  private fetch(page: number): void {
     this.request?.unsubscribe();
     this.loading.set(true);
     this.loadFailed.set(false);
-    const query = { q: this.q() || undefined, offset, limit: PAGE_SIZE };
-    const done = <T>(target: WritableSignal<T[]>) => (page: Page<T>) => {
-      target.update((list) => (offset ? [...list, ...page.items] : page.items));
-      this.total.set(page.total);
+    const query = { q: this.q() || undefined, offset: page * PAGE_SIZE, limit: PAGE_SIZE };
+    const done = <T>(target: WritableSignal<T[]>) => (result: Page<T>) => {
+      // The last entry of the last page was deleted: show the page before
+      if (!result.items.length && result.total && page > 0) {
+        this.page.set(Math.ceil(result.total / PAGE_SIZE) - 1);
+        return;
+      }
+      target.set(result.items);
+      this.total.set(result.total);
       this.loading.set(false);
       this.loaded.set(true);
     };

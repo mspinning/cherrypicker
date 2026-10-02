@@ -56,7 +56,7 @@
       }
 
       @if (loaded() && count()) {
-        <ul class="list">
+        <ul class="list" [class.is-loading]="loading()">
           @if (activeTab() === 'companies') {
             @for (c of companies(); track c.id) {
               <li>
@@ -102,8 +102,8 @@
             }
           }
         </ul>
-        @if (hasMore()) {
-          <button type="button" class="more" [disabled]="loading()" (click)="loadMore()">Weitere laden</button>
+        @if (total() > pageSize) {
+          <app-pager [page]="page()" [total]="total()" [pageSize]="pageSize" (pageChange)="goTo($event)" />
         }
       } @else if (loadFailed()) {
         <div class="empty" role="alert">
@@ -130,11 +130,11 @@
     <div class="detail">
       @if (contact(); as id) {
         @for (key of [id]; track key) {
-          <app-contact-view [id]="key" [backToCompany]="!!company()" (removed)="contactRemoved(key, $event)" />
+          <app-contact-view [id]="key" [backToCompany]="!!company()" (removed)="removed({ contact: null })" />
         }
       } @else if (company(); as id) {
         @for (key of [id]; track key) {
-          <app-company-view [id]="key" (removed)="companyRemoved(key)" />
+          <app-company-view [id]="key" (removed)="removed({ company: null, contact: null })" />
         }
       } @else if (count()) {
         <div class="placeholder">Wähle links {{ activeTab() === 'companies' ? 'eine Firma' : 'eine Person' }}.</div>

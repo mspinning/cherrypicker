@@ -202,6 +202,12 @@
   flex-direction: column;
   gap: 2px;
   margin: 0 -4px;
+  transition: opacity 0.15s;
+
+  // Next page on its way
+  &.is-loading {
+    opacity: 0.55;
+  }
 }
 
 .item {
