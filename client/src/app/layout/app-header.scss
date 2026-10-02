@@ -63,12 +63,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
+
+  // Small phones: brand and up to four buttons share 343px
+  @media (max-width: 400px) {
+    gap: 6px;
+  }
 }
 
 .round {
   position: relative;
   width: 44px;
   height: 44px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -109,6 +115,40 @@
   color: var(--ink-soft);
 }
 
+// Round "in" on small phones, the full "Linked[in]" wordmark wherever it fits
+.linkedin {
+  gap: 5px;
+
+  &,
+  &:hover,
+  &.is-active {
+    color: var(--ink);
+  }
+
+  @media (min-width: 480px) {
+    width: auto;
+    padding: 0 14px 0 17px;
+  }
+}
+
+.linkedin__word {
+  display: none;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+
+  @media (min-width: 480px) {
+    display: inline;
+  }
+}
+
+.linkedin__bug {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .badge {
   position: absolute;
   top: -4px;
@@ -137,6 +177,10 @@
   display: flex;
   margin-left: auto;
   margin-right: 10px;
+
+  @media (max-width: 400px) {
+    margin-right: 6px;
+  }
 
   @include desktop {
     position: absolute;

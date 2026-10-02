@@ -50,6 +50,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "chrome-extension",
+                "output": "chrome-extension"
               }
             ],
             "styles": [

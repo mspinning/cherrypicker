@@ -37,7 +37,8 @@ export type IconName =
   | 'pin'
   | 'inbound'
   | 'outbound'
-  | 'sparkle';
+  | 'sparkle'
+  | 'linkedin';
 
 /** Inline stroke icons (24px grid, currentColor). */
 @Component({
@@ -196,6 +197,10 @@ export type IconName =
         @case ('sparkle') {
           <svg:path d="M12 3.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5z" />
           <svg:path d="M18.5 15.5c.3 1.6 1 2.3 2.5 2.5-1.5.3-2.2 1-2.5 2.5-.3-1.5-1-2.2-2.5-2.5 1.5-.2 2.2-.9 2.5-2.5z" />
+        }
+        @case ('linkedin') {
+          <svg:rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
+          <svg:path d="M8.2 10.8v5.7M8.2 7.9v.01M11.8 16.5v-5.7M11.8 13.4c0-1.6 1-2.7 2.4-2.7s2.4 1.1 2.4 2.7v3.1" />
         }
         @case ('users') {
           <svg:circle cx="9" cy="8.5" r="3.5" />

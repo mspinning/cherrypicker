@@ -187,6 +187,31 @@ queued ──► scanning ──────────────────
 
 Der regelmäßige Abgleich im Hintergrund für alle verbundenen Nutzer (neueste Mails → Vorschläge für die nächste beste Opportunity) kann auf Folgendem aufbauen: `GraphClient`, `CrmMergeService`, die Entscheidungen in `crm_party_decisions` (bekannte Dienstleister kosten keinen LLM-Aufruf), unveränderliche Mail-IDs und `MicrosoftEvents`. Für das inkrementelle Lesen bietet sich die Delta-Abfrage von Graph an (`/me/mailFolders/{id}/messages/delta`).
 
+## LinkedIn-Nachrichten (Chrome-Erweiterung)
+
+Der LinkedIn-Button im Header (links neben Einstellungen und Profil) schaut nach neuen LinkedIn-Nachrichten. Dafür nutzt er die LinkedIn-Anmeldung, die im Browser schon besteht. Gibt es keine, meldet das CRM das nur. Es meldet sich nie selbst an.
+
+```
+CRM-Seite ─ postMessage ─► bridge.js (Content-Script auf dem CRM)
+                               │ chrome.runtime.connect
+                               ▼
+                          background.js ─► Tab linkedin.com/messaging/thread/new/
+                               │             (Sitzung prüfen, Liste lesen: inbox-reader.js)
+                               ▼
+CRM-Seite ◄─ Fortschritt und Ergebnis ─┘   danach zurück zum CRM-Tab
+```
+
+- **Eigene Erweiterung statt Browser MCP.** Browser MCP verbindet KI-Clients (Cursor, Claude Desktop) über einen lokalen MCP-Server mit dem Browser. Eine Web-App kann ihn nicht direkt ansprechen. Für den festen Ablauf „LinkedIn öffnen, Posteingang lesen“ braucht es weder MCP noch ein LLM.
+- **Quelle:** `client/chrome-extension/` (Manifest V3). Der Build liefert den Ordner unter `/chrome-extension/` mit aus (`angular.json`, Assets).
+- **Erkennung:** Beim Klick fragt das CRM per `postMessage`, ob die Bridge antwortet (800 ms). Ohne Antwort zeigt das Panel die Installation. Nach der Installation verbindet sich die Erweiterung mit offenen CRM-Tabs, das Panel macht dann von selbst weiter.
+- **Installation:** „Erweiterung herunterladen“ packt die Dateien im Browser zu `cherrypick-linkedin.zip`. Das Manifest wird dabei auf den Host angepasst, von dem das CRM kommt (z. B. `https://crm.example.com/*`), alle Ports eingeschlossen. Danach unter `chrome://extensions` den Entwicklermodus einschalten und „Entpackte Erweiterung laden“. Für die Entwicklung lässt sich `client/chrome-extension/` direkt laden, das Manifest dort gilt für `http://localhost`.
+- **Ablauf:** Ein offener Messaging-Tab wird wiederverwendet, sonst öffnet die Erweiterung `/messaging/thread/new/`. Diese Ansicht zeigt die Liste, ohne eine Unterhaltung zu öffnen. Unter `/messaging/` würde LinkedIn die neueste Unterhaltung öffnen und als gelesen markieren. Der Tab steht beim Lesen vorn, weil Chrome Hintergrund-Tabs nicht fertig rendert. Danach wechselt Chrome zurück zum CRM.
+- **Angemeldet?** Leitet LinkedIn auf `/login`, `/uas/…`, `/authwall` oder `/checkpoint/…` um oder zeigt ein Login-Formular, lautet das Ergebnis „nicht angemeldet“. Bei `/checkpoint/challenge` fragt LinkedIn nach einer Sicherheitsprüfung, die der Nutzer selbst erledigt.
+- **Gelesen** werden die neuesten 12 Unterhaltungen (Name, Vorschau, Zeit, ungelesen) und der Zähler in LinkedIns Kopfleiste. Die Erweiterung klickt und tippt nichts. Das Ergebnis bleibt im Browser (Signal im `LinkedInStore`) und geht nicht an den Server.
+- **Berechtigungen:** `scripting`, Host-Zugriff auf `https://www.linkedin.com/*` und den CRM-Host. Keine Cookies, kein `tabs`.
+- **Grenzen:** Der Leser hängt an LinkedIns Seitenaufbau (Klassen `msg-conversation-*`, Fallback über Links auf `/messaging/thread/`). Baut LinkedIn um, meldet das Panel „anders aufgebaut als erwartet“, dann `inbox-reader.js` anpassen. LinkedIns Nutzungsbedingungen untersagen automatisierte Zugriffe. Die Erweiterung liest deshalb nur auf Klick und nie im Hintergrund.
+- **Chrome Web Store:** Für eine Installation ohne Entwicklermodus muss die Erweiterung dort veröffentlicht werden. Das Manifest braucht dann die festen CRM-Hosts in `host_permissions` und `content_scripts.matches`.
+
 ## Endpunkte
 
 | Methode | Pfad                 | Auth   | Body                                       |
