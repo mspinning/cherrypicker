@@ -21,6 +21,10 @@ export class TodayPage {
   protected readonly store = inject(TodayStore);
   protected readonly isDesktop = inject(Viewport).isDesktop;
 
+  constructor() {
+    this.store.load();
+  }
+
   /** Soft background glow that tints lime / coral while swiping. */
   readonly glowColor = computed(() => {
     if (this.store.approveStrength() > 0) return 'var(--lime)';

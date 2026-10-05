@@ -66,12 +66,13 @@ export class ProfilePage {
 
   constructor() {
     if (!this.user()) this.reload();
+    if (this.today.loadState() !== 'ready') this.today.load();
 
-    // Animate in once the profile is there (it may still be loading)
+    // Animate in once profile and tasks are there (they may still be loading)
     const injector = inject(Injector);
     let played = false;
     effect(() => {
-      if (!this.user() || played) return;
+      if (!this.user() || this.today.loadState() === 'loading' || played) return;
       played = true;
       afterNextRender(() => this.playIntro(), { injector });
     });
@@ -112,7 +113,6 @@ export class ProfilePage {
   }
 
   logout(): void {
-    this.today.reset();
     this.auth.logout();
   }
 }

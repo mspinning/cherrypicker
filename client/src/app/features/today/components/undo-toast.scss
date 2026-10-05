@@ -30,6 +30,11 @@
   }
 }
 
+// Without the undo button the text sets the height
+:host(.is-plain) {
+  padding: 16px 20px;
+}
+
 @keyframes toast-in-mobile {
   from {
     opacity: 0;

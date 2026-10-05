@@ -1,7 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Observable, firstValueFrom } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
+import { Task } from '../../core/tasks/task.models';
+import { TasksApi } from '../../core/tasks/tasks-api.service';
 import { Viewport } from '../../core/viewport';
-import { MOCK_SUGGESTIONS } from './mock-suggestions';
 import { Decision, QueueItem, QueueStatus, Suggestion, Toast, Verdict } from './suggestion.model';
+import { toSuggestion } from './to-suggestion';
 
 /** Drag distance (px) that counts as a decision. */
 const SWIPE_THRESHOLD = { desktop: 120, mobile: 90 };
@@ -19,15 +23,22 @@ const STATUS_LABEL: Record<QueueStatus, string> = {
   waiting: 'Wartet',
 };
 
+export type LoadState = 'loading' | 'ready' | 'failed';
+
 /**
- * State of the "Heute" screen: the suggestion stack, swipe gesture,
- * draft editing and today's decisions. Purely client-side for now.
+ * State of the "Heute" screen: the signed-in user's tasks as a card stack,
+ * the swipe gesture, draft editing and today's decisions. Decisions show
+ * right away and are saved on the server in the background.
  */
 @Injectable({ providedIn: 'root' })
 export class TodayStore {
+  private readonly api = inject(TasksApi);
+  private readonly auth = inject(AuthService);
   private readonly viewport = inject(Viewport);
 
-  readonly suggestions = signal<Suggestion[]>(MOCK_SUGGESTIONS);
+  readonly loadState = signal<LoadState>('loading');
+  /** Today's decided tasks first, in the order they were decided, then the open ones. */
+  readonly suggestions = signal<Suggestion[]>([]);
   readonly index = signal(0);
   readonly decisions = signal<Decision[]>([]);
   readonly toast = signal<Toast | null>(null);
@@ -48,6 +59,18 @@ export class TodayStore {
   private leaveTimer?: ReturnType<typeof setTimeout>;
   private snapTimer?: ReturnType<typeof setTimeout>;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  /** Requests run one after another: an undo never overtakes its decision, a reload sees every decision. */
+  private requests: Promise<unknown> = Promise.resolve();
+  /** Only the newest load may fill the screen. */
+  private loadId = 0;
+
+  constructor() {
+    // The tasks belong to the signed-in user and never outlive the session
+    effect(() => {
+      if (!this.auth.session()) untracked(() => this.clear());
+    });
+  }
 
   readonly threshold = computed(() => (this.viewport.isDesktop() ? SWIPE_THRESHOLD.desktop : SWIPE_THRESHOLD.mobile));
   readonly flyDistance = computed(() => (this.viewport.isDesktop() ? FLY_DISTANCE.desktop : FLY_DISTANCE.mobile));
@@ -93,6 +116,22 @@ export class TodayStore {
     });
   });
 
+  // ---- Loading ----
+
+  /** Fetches the signed-in user's tasks; whatever was on screen before is dropped. */
+  load(): void {
+    this.clear();
+    const id = this.loadId;
+    this.enqueue(this.api.list(startOfToday())).then(
+      (tasks) => {
+        if (id === this.loadId) this.show(tasks);
+      },
+      () => {
+        if (id === this.loadId) this.loadState.set('failed');
+      },
+    );
+  }
+
   // ---- Gesture ----
 
   canDrag(): boolean {
@@ -129,13 +168,18 @@ export class TodayStore {
     this.decide('reject');
   }
 
-  decide(verdict: Verdict, edited = false): void {
+  decide(verdict: Verdict): void {
     if (this.leaving() || this.done()) return;
     const suggestion = this.current();
+    const draft = this.draftOf(suggestion);
+    const edited = verdict === 'approve' && draft !== suggestion.draft;
 
     this.dragging.set(false);
     this.editing.set(false);
     this.leaving.set(verdict);
+    this.save(
+      verdict === 'approve' ? this.api.approve(suggestion.id, edited ? draft : undefined) : this.api.reject(suggestion.id),
+    );
 
     clearTimeout(this.leaveTimer);
     this.leaveTimer = setTimeout(() => {
@@ -145,12 +189,14 @@ export class TodayStore {
       this.dx.set(0);
       this.showReason.set(false);
       this.snap();
-      this.showToast({ text: this.toastText(suggestion, verdict, edited), verdict });
+      this.showToast({ text: this.toastText(suggestion, verdict, edited), verdict, undoable: true });
     }, LEAVE_MS);
   }
 
   undo(): void {
-    if (!this.decisions().length || this.leaving()) return;
+    const last = this.decisions().at(-1);
+    if (!last || this.leaving()) return;
+    this.save(this.api.reopen(last.id));
     clearTimeout(this.toastTimer);
     this.decisions.update((list) => list.slice(0, -1));
     this.index.update((i) => i - 1);
@@ -161,19 +207,10 @@ export class TodayStore {
     this.snap();
   }
 
+  /** Takes back every decision, also those of earlier days. */
   reset(): void {
-    clearTimeout(this.leaveTimer);
-    clearTimeout(this.toastTimer);
-    this.index.set(0);
-    this.decisions.set([]);
-    this.drafts.set({});
-    this.toast.set(null);
-    this.dx.set(0);
-    this.dragging.set(false);
-    this.leaving.set(null);
-    this.editing.set(false);
-    this.showReason.set(false);
-    this.snap();
+    this.save(this.api.reopenAll());
+    this.load();
   }
 
   // ---- Editing ----
@@ -196,8 +233,7 @@ export class TodayStore {
   }
 
   saveEdit(): void {
-    const suggestion = this.current();
-    this.decide('approve', this.draftOf(suggestion) !== suggestion.draft);
+    this.decide('approve');
   }
 
   toggleReason(): void {
@@ -205,6 +241,57 @@ export class TodayStore {
   }
 
   // ---- Helpers ----
+
+  /** Back to "nothing loaded"; a load still on its way is ignored. */
+  private clear(): void {
+    this.loadId++;
+    clearTimeout(this.leaveTimer);
+    clearTimeout(this.toastTimer);
+    this.loadState.set('loading');
+    this.suggestions.set([]);
+    this.index.set(0);
+    this.decisions.set([]);
+    this.drafts.set({});
+    this.toast.set(null);
+    this.dx.set(0);
+    this.dragging.set(false);
+    this.leaving.set(null);
+    this.editing.set(false);
+    this.showReason.set(false);
+  }
+
+  private show(tasks: Task[]): void {
+    const decided = tasks.filter((task) => task.status !== 'open');
+    this.suggestions.set(tasks.map((task) => toSuggestion(task)));
+    this.decisions.set(
+      decided.map((task) => ({
+        id: task.id,
+        verdict: task.status === 'rejected' ? 'reject' : 'approve',
+        edited: task.finalDraft !== null,
+      })),
+    );
+    this.index.set(decided.length);
+    this.drafts.set(
+      Object.fromEntries(decided.flatMap((task) => (task.finalDraft === null ? [] : [[task.id, task.finalDraft]]))),
+    );
+    this.loadState.set('ready');
+    this.snap();
+  }
+
+  /** If the server did not take a change, its state replaces what the screen assumed. */
+  private save(request: Observable<unknown>): void {
+    this.enqueue(request).catch(() => {
+      if (!this.auth.session()) return;
+      this.load();
+      this.showToast({ text: 'Nicht gespeichert · bitte erneut versuchen', verdict: 'reject', undoable: false });
+    });
+  }
+
+  private enqueue<T>(request: Observable<T>): Promise<T> {
+    const result = this.requests.then(() => firstValueFrom(request));
+    this.requests = result.catch(() => undefined);
+    return result;
+  }
 
   private draftOf(suggestion: Suggestion): string {
     return this.drafts()[suggestion.id] ?? suggestion.draft;
@@ -226,4 +313,11 @@ export class TodayStore {
     clearTimeout(this.snapTimer);
     this.snapTimer = setTimeout(() => this.snapping.set(false), 50);
   }
+}
+
+/** Start of the local day, as the server expects it (ISO 8601 in UTC). */
+function startOfToday(): string {
+  const day = new Date();
+  day.setHours(0, 0, 0, 0);
+  return day.toISOString();
 }

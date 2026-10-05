@@ -19,7 +19,6 @@ import { Observable } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { CurrentUser } from '../../core/auth/auth.models';
 import { Icon } from '../../shared/icon';
-import { MOCK_SUGGESTIONS } from '../today/mock-suggestions';
 import { AuthMode, PENDING_AFTER_REGISTER, PENDING_ON_LOGIN, describeAuthError, isApprovalPending, passwordStrength } from './auth-errors';
 import { CHERRY_LEFT_EDGE } from './cherry-anchor';
 import type { LoginScene } from './login-scene';
@@ -28,7 +27,10 @@ type Status = 'idle' | 'submitting' | 'success';
 
 /** Example outcomes cycling below the headline – what a morning with Cherrypick looks like. */
 const TICKER = [
-  ...MOCK_SUGGESTIONS.slice(0, 4).map((s) => ({ text: `${s.scheduledLabel} · ${s.scheduledTime}`, tone: 'approve' })),
+  { text: 'Mail an Lena geplant · 10:00 Uhr', tone: 'approve' },
+  { text: 'Anruf mit Tobias eingeplant · 15:30 Uhr', tone: 'approve' },
+  { text: 'Angebot an Aylin geplant · morgen 09:00', tone: 'approve' },
+  { text: 'Einladung an Jonas geplant · 11:30 Uhr', tone: 'approve' },
   { text: 'Verworfen · Cherrypick lernt daraus', tone: 'reject' },
 ];
 

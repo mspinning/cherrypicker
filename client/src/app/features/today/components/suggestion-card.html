@@ -23,7 +23,7 @@
     <div class="avatar" [style.background-color]="s.contact.avatarColor" aria-hidden="true">{{ s.contact.initials }}</div>
     <div class="contact__text">
       <div class="contact__name">{{ s.contact.name }}</div>
-      <div class="contact__role">{{ s.contact.role }} · {{ s.contact.company }}</div>
+      <div class="contact__role">{{ s.contact.role ? s.contact.role + ' · ' + s.contact.company : s.contact.company }}</div>
     </div>
   </div>
 

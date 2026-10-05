@@ -9,6 +9,7 @@ import { MicrosoftModule } from './integrations/microsoft/microsoft.module';
 import { KeycloakModule } from './keycloak/keycloak.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { MailImportModule } from './mail-import/mail-import.module';
+import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     MicrosoftModule,
     CrmModule,
     MailImportModule,
+    TasksModule,
   ],
   controllers: [HealthController],
 })

@@ -187,6 +187,16 @@ queued ──► scanning ──────────────────
 
 Der regelmäßige Abgleich im Hintergrund für alle verbundenen Nutzer (neueste Mails → Vorschläge für die nächste beste Opportunity) kann auf Folgendem aufbauen: `GraphClient`, `CrmMergeService`, die Entscheidungen in `crm_party_decisions` (bekannte Dienstleister kosten keinen LLM-Aufruf), unveränderliche Mail-IDs und `MicrosoftEvents`. Für das inkrementelle Lesen bietet sich die Delta-Abfrage von Graph an (`/me/mailFolders/{id}/messages/delta`).
 
+## Aufgaben („Heute“)
+
+Die Karten auf „Heute“ sind Zeilen der Tabelle `tasks`. Jede Aufgabe gehört genau einem Vertriebsmitarbeiter (`assignee_id` → `users`, wird mit dem Nutzer gelöscht). Jeder sieht und entscheidet nur seine eigenen, fremde Aufgaben beantwortet die API mit `404`.
+
+- **Inhalt:** Art (`mail`, `call`, `offer`, `meeting`), Titel, Kontakt und Deal als Momentaufnahme für die Karte (noch ohne Verknüpfung zu `crm_contacts`), Entwurf, Begründung mit gewichteten Belegen (`evidence`, JSONB), bester Zeitpunkt (`due_at`) und letzter Kontakt als Zeitstempel. Texte wie „vor 9 Tagen“ oder „Heute, 10:00 Uhr“ rechnet der Client daraus.
+- **Entscheidung:** `status` ist `open`, `approved` oder `rejected`, dazu `decided_at`. Wer den Entwurf vor der Freigabe ändert, dessen Text steht in `final_draft`, der Vorschlag in `draft` bleibt erhalten. „Rückgängig“ öffnet die Aufgabe wieder.
+- **Heute-Ansicht:** `GET /api/tasks?decidedSince=<Tagesbeginn>` liefert zuerst die seit Tagesbeginn entschiedenen Aufgaben in der Reihenfolge der Entscheidung, dann die offenen nach `due_at`. Die Entscheidungen überstehen so ein Neuladen, am nächsten Tag sind sie aus der Liste verschwunden.
+- **Demo-Aufgaben:** Mit `SEED_DEMO_TASKS=true` (Standard in `docker-compose.yml`) bekommt beim Serverstart jeder freigegebene Nutzer, der noch keine Aufgabe hat, sieben Demo-Aufgaben (`server/src/tasks/demo-tasks.ts`), signiert mit seinem Vornamen. Wer später freigegeben wird, bekommt sie beim nächsten Start. „Demo neu starten“ öffnet alle entschiedenen Aufgaben des Nutzers wieder, auch die früherer Tage.
+- Eine Freigabe löst noch nichts aus (kein Versand, kein Kalendereintrag). Die nächste Ausbaustufe schreibt echte Vorschläge in dieselbe Tabelle.
+
 ## LinkedIn-Nachrichten (Chrome-Erweiterung)
 
 Der LinkedIn-Button im Header (links neben Einstellungen und Profil) schaut nach neuen LinkedIn-Nachrichten. Dafür nutzt er die LinkedIn-Anmeldung, die im Browser schon besteht. Gibt es keine, meldet das CRM das nur. Es meldet sich nie selbst an.
@@ -260,6 +270,11 @@ CRM-Seite ◄─ Fortschritt und Ergebnis ─┘   danach zurück zum CRM-Tab
 | GET     | `/api/crm/contacts`                        | Bearer | Query: `q`, `companyId`, `offset`, `limit` |
 | GET     | `/api/crm/contacts/:id`                    | Bearer | –                                      |
 | DELETE  | `/api/crm/contacts/:id`                    | Bearer | Query: `ignore=true` (nur Privatkontakte) |
+| GET     | `/api/tasks`                               | Bearer | Query: `decidedSince` (ISO 8601; ohne: nur offene) |
+| POST    | `/api/tasks/:id/approve`                   | Bearer | `draft` (nur bei geändertem Text)      |
+| POST    | `/api/tasks/:id/reject`                    | Bearer | –                                      |
+| POST    | `/api/tasks/:id/reopen`                    | Bearer | – (Entscheidung zurücknehmen)          |
+| POST    | `/api/tasks/reopen`                        | Bearer | – (alle eigenen Entscheidungen zurücknehmen) |
 | GET     | `/api/health`        | –      | –                                          |
 
 ```bash
@@ -285,7 +300,7 @@ curl localhost:3000/api/users/me -H "Authorization: Bearer <accessToken>"
 ```bash
 docker compose up -d postgres keycloak
 cd server && npm install
-DB_HOST=localhost DB_PORT=5432 DB_USER=crm DB_PASSWORD=change-me-postgres DB_NAME=crm DB_SYNCHRONIZE=true \
+DB_HOST=localhost DB_PORT=5432 DB_USER=crm DB_PASSWORD=change-me-postgres DB_NAME=crm DB_SYNCHRONIZE=true SEED_DEMO_TASKS=true \
 KEYCLOAK_INTERNAL_URL=http://localhost:8080 KEYCLOAK_PUBLIC_URL=http://localhost:8080 \
 KEYCLOAK_REALM=crm KEYCLOAK_CLIENT_ID=crm-backend KEYCLOAK_CLIENT_SECRET=change-me-client-secret \
 npm run start:dev

@@ -17,6 +17,7 @@ export interface Contact {
   avatarColor: string;
 }
 
+/** A task as its card on "Heute" shows it, see `toSuggestion`. */
 export interface Suggestion {
   id: string;
   kind: SuggestionKind;
@@ -61,4 +62,6 @@ export interface QueueItem {
 export interface Toast {
   text: string;
   verdict: Verdict;
+  /** false for messages that are not about a decision */
+  undoable: boolean;
 }

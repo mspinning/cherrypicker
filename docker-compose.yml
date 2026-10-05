@@ -123,6 +123,8 @@ services:
       # Chat model that recognizes customers in mails (via Bifrost, allowed for the virtual key)
       LLM_MODEL: ${LLM_MODEL:-}
       MAIL_IMPORT_INTERNAL_DOMAINS: ${MAIL_IMPORT_INTERNAL_DOMAINS:-}
+      # Demo tasks on "Heute" for every approved user who has none yet
+      SEED_DEMO_TASKS: ${SEED_DEMO_TASKS:-true}
     volumes:
       - server-storage:/app/storage
     ports:

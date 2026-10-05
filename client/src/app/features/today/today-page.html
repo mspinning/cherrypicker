@@ -8,7 +8,14 @@
   <section class="stage" aria-label="Aktueller Vorschlag">
     <div class="glow" aria-hidden="true" [style.background-color]="glowColor()" [style.opacity]="glowOpacity()"></div>
 
-    @if (store.done()) {
+    @if (store.loadState() === 'loading') {
+      <div class="state" aria-live="polite"><span class="loader" aria-label="Wird geladen"></span></div>
+    } @else if (store.loadState() === 'failed') {
+      <div class="state" role="alert">
+        <p>Deine Aufgaben konnten nicht geladen werden.</p>
+        <button type="button" class="retry" (click)="store.load()">Erneut versuchen</button>
+      </div>
+    } @else if (store.done()) {
       <app-done-panel [compact]="!isDesktop()" />
     } @else {
       <app-suggestion-stack [compact]="!isDesktop()" />
@@ -26,11 +33,13 @@
 
   @if (isDesktop()) {
     <aside class="aside" [attr.aria-label]="store.done() ? 'Heute entschieden' : 'Begründung'">
-      @if (store.done()) {
-        <div class="aside__eyebrow">Heute entschieden</div>
-        <app-decision-list />
-      } @else {
-        <app-reason-panel class="aside__reason" [suggestion]="store.current()" />
+      @if (store.loadState() === 'ready') {
+        @if (store.done()) {
+          <div class="aside__eyebrow">Heute entschieden</div>
+          <app-decision-list />
+        } @else {
+          <app-reason-panel class="aside__reason" [suggestion]="store.current()" />
+        }
       }
     </aside>
   }

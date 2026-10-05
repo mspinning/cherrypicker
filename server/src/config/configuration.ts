@@ -57,6 +57,10 @@ export interface AppConfig {
     /** Mail domains of the own group besides the users' own ones; never imported as customers */
     internalDomains: string[];
   };
+  tasks: {
+    /** Fills "Heute" with demo tasks for approved users who have none; for development and demos */
+    seedDemo: boolean;
+  };
 }
 
 /** Read at import time by the chunk entity, which needs the vector size in its decorator. */
@@ -124,6 +128,9 @@ export default (): AppConfig => {
     },
     mailImport: {
       internalDomains: list(process.env.MAIL_IMPORT_INTERNAL_DOMAINS),
+    },
+    tasks: {
+      seedDemo: process.env.SEED_DEMO_TASKS === 'true',
     },
   };
 };
