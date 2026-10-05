@@ -15,6 +15,10 @@ export interface Task {
   kind: TaskKind;
   title: string;
   contactName: string;
+  /** Who the contact is in the CRM, if exactly one person or company fits the name */
+  crmContact: { kind: 'person' | 'company'; id: string } | null;
+  /** The number for a call, as it is written in the CRM: the person's, else the company's */
+  phone: string | null;
   contactRole: string | null;
   companyName: string | null;
   /** As shown on the card, e.g. "48.000 €" */

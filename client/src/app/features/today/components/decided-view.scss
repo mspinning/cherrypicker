@@ -1,0 +1,129 @@
+@use 'mixins' as *;
+
+// Card and bar take the places of the stack and the action bar
+:host {
+  display: contents;
+}
+
+// Same box as the card stack, so the card does not jump when a task is opened
+.frame {
+  position: relative;
+  width: 540px;
+  max-width: 100%;
+  height: clamp(460px, calc(100dvh - 290px), 640px);
+  animation: rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @include desktop-short {
+    height: clamp(460px, calc(100dvh - 216px), 640px);
+  }
+
+  :host(.compact) & {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    flex-grow: 1;
+    min-height: 460px;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+}
+
+.bar {
+  position: relative;
+  flex-shrink: 0;
+  width: 540px;
+  max-width: 100%;
+  // As tall as the action bar
+  min-height: 98px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  @include desktop-short {
+    min-height: 72px;
+  }
+
+  :host(.compact) & {
+    width: 100%;
+    max-width: 480px;
+    min-height: 66px;
+  }
+}
+
+.verdict {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verdict__status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 500;
+
+  :host(.compact) & {
+    font-size: 15px;
+  }
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 99px;
+  background-color: var(--lime);
+
+  &[data-status='rejected'] {
+    background-color: var(--coral);
+  }
+}
+
+.verdict__note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  @include eyebrow(11px, 0.1em);
+  color: var(--ink-muted);
+}
+
+.back {
+  flex-shrink: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border-button);
+  background-color: var(--surface-raised);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--line);
+  }
+
+  :host(.compact) & {
+    padding: 0 18px;
+  }
+}

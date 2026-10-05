@@ -1,4 +1,5 @@
 import { IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Identified } from '../../crm/crm-lookup.service';
 import { Task, TaskEvidence, TaskKind, TaskStatus } from '../entities/task.entity';
 
 export class ListTasksQueryDto {
@@ -21,6 +22,10 @@ export class TaskDto {
   kind: TaskKind;
   title: string;
   contactName: string;
+  /** Who the contact is in the CRM, if exactly one person or company fits the name; the card opens them */
+  crmContact: { kind: 'person' | 'company'; id: string } | null;
+  /** The number for a call: the person's mobile, else their landline, else the company's */
+  phone: string | null;
   contactRole: string | null;
   companyName: string | null;
   dealValue: string | null;
@@ -38,12 +43,15 @@ export class TaskDto {
   finalDraft: string | null;
   decidedAt: Date | null;
 
-  static from(task: Task): TaskDto {
+  /** `contact`: who the task's contact is in the CRM, see `CrmLookupService.identify` */
+  static from(task: Task, contact: Identified): TaskDto {
     return {
       id: task.id,
       kind: task.kind,
       title: task.title,
       contactName: task.contactName,
+      crmContact: contact.party,
+      phone: contact.phone,
       contactRole: task.contactRole,
       companyName: task.companyName,
       dealValue: task.dealValue,

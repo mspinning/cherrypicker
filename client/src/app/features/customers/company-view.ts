@@ -4,10 +4,10 @@ import { pastelOf } from '../../core/auth/user-display';
 import { CrmApi } from '../../core/crm/crm-api.service';
 import { CompanyDetail, RELATIONSHIP_LABELS } from '../../core/crm/crm.models';
 import { Icon } from '../../shared/icon';
-import { errorMessage, formatAgo, formatDate, plural } from '../../shared/format';
+import { errorMessage, formatAgo, formatDate, plural, telOf } from '../../shared/format';
 import { ActivityList } from './activity-list';
 import { NoteList } from './note-list';
-import { addressOf, initialsOfName, telOf } from './customers-format';
+import { addressOf, initialsOfName } from './customers-format';
 
 /** One customer company: master data, relationship, people and the own mails with them. */
 @Component({

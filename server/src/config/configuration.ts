@@ -57,6 +57,12 @@ export interface AppConfig {
     /** Mail domains of the own group besides the users' own ones; never imported as customers */
     internalDomains: string[];
   };
+  mailSync: {
+    /** Minutes between two checks of a connected mailbox for new mails; 0 turns the background check off */
+    intervalMinutes: number;
+    /** How far back the first check of a mailbox looks */
+    lookbackHours: number;
+  };
   tasks: {
     /** Fills "Heute" with demo tasks for approved users who have none; for development and demos */
     seedDemo: boolean;
@@ -85,6 +91,11 @@ function list(value: string | undefined): string[] {
     .split(',')
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function nonNegative(value: string | undefined, fallback: number): number {
+  const number = Number(value);
+  return value?.trim() && Number.isFinite(number) && number >= 0 ? number : fallback;
 }
 
 export default (): AppConfig => {
@@ -134,6 +145,10 @@ export default (): AppConfig => {
     },
     mailImport: {
       internalDomains: list(process.env.MAIL_IMPORT_INTERNAL_DOMAINS),
+    },
+    mailSync: {
+      intervalMinutes: nonNegative(process.env.MAIL_SYNC_INTERVAL_MINUTES, 2),
+      lookbackHours: nonNegative(process.env.MAIL_SYNC_LOOKBACK_HOURS, 24),
     },
     tasks: {
       seedDemo: process.env.SEED_DEMO_TASKS === 'true',

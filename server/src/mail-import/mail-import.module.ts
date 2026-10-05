@@ -11,6 +11,7 @@ import { MailImportJob } from './entities/mail-import-job.entity';
 import { MailImportController } from './mail-import.controller';
 import { MailImportService } from './mail-import.service';
 import { MailImportWorker } from './mail-import.worker';
+import { MailboxContext } from './mailbox-context.service';
 import { RelationshipClassifier } from './relationship-classifier.service';
 
 @Module({
@@ -22,6 +23,8 @@ import { RelationshipClassifier } from './relationship-classifier.service';
     UsersModule,
   ],
   controllers: [MailImportController],
-  providers: [MailImportService, MailImportWorker, RelationshipClassifier],
+  providers: [MailImportService, MailImportWorker, RelationshipClassifier, MailboxContext],
+  // The background sync classifies new counterparts the same way the import does
+  exports: [RelationshipClassifier, MailboxContext],
 })
 export class MailImportModule {}

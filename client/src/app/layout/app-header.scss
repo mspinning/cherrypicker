@@ -54,16 +54,9 @@
   line-height: 1;
   letter-spacing: -0.01em;
 
-  // With the call button a phone has no room for the wordmark next to
-  // five buttons (admins), a small phone not even next to four
-  @media (max-width: 440px) {
+  // With the call button a small phone has no room for the wordmark next to four buttons (admins)
+  @media (max-width: 370px) {
     .header:has(.call):has(.settings) & {
-      display: none;
-    }
-  }
-
-  @media (max-width: 360px) {
-    .header:has(.call) & {
       display: none;
     }
   }
@@ -159,40 +152,6 @@
   @include desktop {
     display: inline;
   }
-}
-
-// Round "in" on small phones, the full "Linked[in]" wordmark wherever it fits
-.linkedin {
-  gap: 5px;
-
-  &,
-  &:hover,
-  &.is-active {
-    color: var(--ink);
-  }
-
-  @media (min-width: 480px) {
-    width: auto;
-    padding: 0 14px 0 17px;
-  }
-}
-
-.linkedin__word {
-  display: none;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1;
-
-  @media (min-width: 480px) {
-    display: inline;
-  }
-}
-
-.linkedin__bug {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
 }
 
 .badge {

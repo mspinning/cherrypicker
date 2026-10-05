@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { TodayStore } from '../today.store';
 
-/** Summary of today's decisions, shown once the stack is empty. */
+/** Summary of today's decisions, shown once the stack is empty; each one opens again on click, to read. */
 @Component({
   selector: 'app-decision-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -9,13 +9,21 @@ import { TodayStore } from '../today.store';
   template: `
     <ul class="list" aria-label="Heute entschieden">
       @for (q of store.queue(); track q.id) {
-        <li class="row">
-          <span class="dot" [attr.data-status]="q.status"></span>
-          <span class="row__text">
-            <span class="row__name">{{ q.name }}</span>
-            <span class="row__meta">{{ q.kindLabel }} · {{ q.company }}</span>
-          </span>
-          <span class="row__status">{{ q.statusLabel }}</span>
+        <li>
+          <button
+            type="button"
+            class="row"
+            title="Ansehen"
+            [disabled]="!q.decided"
+            (click)="store.view(q.id)"
+          >
+            <span class="dot" [attr.data-status]="q.status"></span>
+            <span class="row__text">
+              <span class="row__name">{{ q.name }}</span>
+              <span class="row__meta">{{ q.kindLabel }} · {{ q.company }}</span>
+            </span>
+            <span class="row__status">{{ q.statusLabel }}</span>
+          </button>
         </li>
       }
     </ul>
@@ -35,12 +43,21 @@ import { TodayStore } from '../today.store';
     }
 
     .row {
+      width: 100%;
       display: flex;
       align-items: center;
       gap: 14px;
       padding: 13px 16px;
+      border: 0;
       border-radius: 16px;
       background-color: var(--row-muted);
+      text-align: left;
+      transition: background-color 0.2s;
+
+      &:hover:enabled,
+      &:active:enabled {
+        background-color: var(--line);
+      }
     }
 
     .dot {
@@ -93,6 +110,11 @@ import { TodayStore } from '../today.store';
         padding: 11px 14px;
         border-radius: 14px;
         background-color: var(--surface-raised);
+
+        &:hover:enabled,
+        &:active:enabled {
+          background-color: var(--line);
+        }
       }
 
       .dot {

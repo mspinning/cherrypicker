@@ -10,6 +10,8 @@ export interface Evidence {
 }
 
 export interface Contact {
+  /** Query params that open them under "Kunden"; null if the CRM does not know them */
+  link: Record<string, string> | null;
   name: string;
   role: string;
   company: string;
@@ -22,6 +24,8 @@ export interface Suggestion {
   id: string;
   kind: SuggestionKind;
   kindLabel: string;
+  /** Only a call whose contact has a number: the kind badge dials it */
+  call?: { number: string; href: string };
   title: string;
   contact: Contact;
   dealValue: string;
@@ -57,6 +61,10 @@ export interface QueueItem {
   kindLabel: string;
   status: QueueStatus;
   statusLabel: string;
+  /** Can be opened again to read */
+  decided: boolean;
+  /** Its card is the one on screen */
+  shown: boolean;
 }
 
 export interface Toast {

@@ -1,6 +1,6 @@
 import { pastelOf } from '../../core/auth/user-display';
 import { Task, TaskKind } from '../../core/tasks/task.models';
-import { formatAgo, formatDay, formatTime } from '../../shared/format';
+import { formatAgo, formatDay, formatTime, telOf } from '../../shared/format';
 import { Suggestion } from './suggestion.model';
 
 const KINDS: Record<TaskKind, { label: string; draftLabel: string; scheduled: (firstName: string) => string }> = {
@@ -22,8 +22,10 @@ export function toSuggestion(task: Task, now = new Date()): Suggestion {
     id: task.id,
     kind: task.kind,
     kindLabel: kind.label,
+    call: task.kind === 'call' && task.phone ? { number: task.phone, href: `callto:${telOf(task.phone)}` } : undefined,
     title: task.title,
     contact: {
+      link: task.crmContact && (task.crmContact.kind === 'person' ? { tab: 'people', contact: task.crmContact.id } : { company: task.crmContact.id }),
       name: task.contactName,
       role: task.contactRole ?? '',
       company: task.companyName ?? 'Privat',

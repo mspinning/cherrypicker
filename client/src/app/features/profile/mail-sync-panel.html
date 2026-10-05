@@ -1,0 +1,165 @@
+<section class="panel" aria-labelledby="sync-title">
+  <div class="top">
+    <div id="sync-title" class="panel__eyebrow">Neue Mails</div>
+    @if (ready() && state(); as s) {
+      <span class="badge" [class.is-off]="!s.enabled" [class.is-busy]="s.enabled && s.syncing">
+        <span class="badge__dot" aria-hidden="true"></span>
+        {{ badge(s) }}
+      </span>
+    }
+  </div>
+
+  @if (overview(); as o) {
+    <p class="lead">
+      Cherrypick schaut {{ o.intervalMinutes > 1 ? 'alle ' + number(o.intervalMinutes) + ' Minuten' : 'jede Minute' }} in dein Postfach.
+      Schreibt ein neuer Kunde oder Interessent, landet er im CRM. Steckt in einer Mail eine Chance, wartet unter „Heute“ eine
+      Aufgabe mit fertigem Antwortentwurf.
+    </p>
+
+    @if (!o.available) {
+      <p class="note">Die Prüfung neuer Mails ist auf dem Server abgeschaltet (MAIL_SYNC_INTERVAL_MINUTES=0).</p>
+    } @else if (!o.llmConfigured) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span>Auf dem Server ist noch kein Sprachmodell eingerichtet (LLM_MODEL). Ohne Modell lassen sich Mails nicht einordnen.</span>
+      </div>
+    } @else if (state(); as s) {
+      <div class="control">
+        <button
+          type="button"
+          role="switch"
+          class="switch"
+          [attr.aria-checked]="s.enabled"
+          aria-labelledby="sync-switch-label"
+          [disabled]="busy()"
+          (click)="toggle()"
+        >
+          <span class="switch__knob" aria-hidden="true"></span>
+        </button>
+        <div class="control__text">
+          <span id="sync-switch-label" class="control__label">Neue Mails automatisch prüfen</span>
+          <span class="control__status" aria-live="polite">
+            @if (s.enabled) {
+              @if (s.syncing) {
+                <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+              }
+              {{ status(s) }}
+            } @else {
+              Pausiert. Nach dem Einschalten geht es mit den Mails weiter, die ab dann ankommen.
+            }
+          </span>
+        </div>
+        @if (s.enabled) {
+          <button type="button" class="pill pill--small" [disabled]="busy() || s.syncing" (click)="runNow()">
+            <app-icon name="refresh" [size]="16" />
+            Jetzt prüfen
+          </button>
+        }
+      </div>
+
+      @if (s.enabled && s.lastError) {
+        <div class="alert" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span>Die letzte Prüfung ist gescheitert: {{ s.lastError }} Der nächste Versuch folgt von selbst.</span>
+        </div>
+      }
+      @if (error(); as message) {
+        <div class="alert" role="alert">
+          <app-icon name="alert" [size]="18" />
+          <span>{{ message }}</span>
+        </div>
+      }
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric__value">{{ number(s.messagesChecked) }}</span>
+          <span class="metric__label">Mails geprüft</span>
+        </div>
+        <div class="metric">
+          <span class="metric__value">{{ number(s.customersCreated) }}</span>
+          <span class="metric__label">neu im CRM</span>
+        </div>
+        <div class="metric">
+          <span class="metric__value is-lime">{{ number(s.tasksCreated) }}</span>
+          <span class="metric__label">Aufgaben</span>
+        </div>
+      </div>
+
+      @if (o.recent.length) {
+        <div class="log">
+          <div class="filters" role="group" aria-label="Geprüfte Mails filtern">
+            <button type="button" class="filter" [class.is-on]="filter() === 'hits'" [attr.aria-pressed]="filter() === 'hits'" (click)="filter.set('hits')">
+              Treffer
+              <span class="filter__count">{{ number(hits().length) }}</span>
+            </button>
+            <button type="button" class="filter" [class.is-on]="filter() === 'all'" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">
+              Alle geprüften
+              <span class="filter__count">{{ number(o.recent.length) }}</span>
+            </button>
+          </div>
+
+          <ul class="rows">
+            @for (item of items(); track item.id) {
+              <li class="row">
+                <div class="row__head">
+                  <span class="row__who">{{ who(item) }}</span>
+                  <span class="row__date">{{ dateTime(item.receivedAt) }}</span>
+                </div>
+                <div class="row__subject">{{ item.subject || '(ohne Betreff)' }}</div>
+                <div class="row__tags">
+                  <span class="tag" [attr.data-outcome]="item.outcome">{{ label(item) }}</span>
+                  @if (item.customerCreated && item.outcome !== 'customer') {
+                    <span class="tag" data-outcome="customer">Neu im CRM</span>
+                  }
+                </div>
+                @if (item.reason) {
+                  <p class="row__reason">{{ item.reason }}</p>
+                }
+                @if (item.task || item.company) {
+                  <div class="row__links">
+                    @if (item.task; as task) {
+                      @if (task.status === 'open') {
+                        <a class="row__link" routerLink="/">
+                          Aufgabe {{ taskState(item) }}
+                          <app-icon name="arrow" [size]="14" />
+                        </a>
+                      } @else {
+                        <span class="row__done">Aufgabe {{ taskState(item) }}</span>
+                      }
+                    }
+                    @if (item.company; as company) {
+                      <a class="row__link" routerLink="/customers" [queryParams]="{ company: company.id }">
+                        Firma öffnen
+                        <app-icon name="arrow" [size]="14" />
+                      </a>
+                    }
+                  </div>
+                }
+              </li>
+            } @empty {
+              <li class="note">Noch keine Treffer. Unter „Alle geprüften“ steht, warum die letzten Mails aussortiert wurden.</li>
+            }
+          </ul>
+
+          @if (hiddenCount() > 0) {
+            <button type="button" class="more" (click)="expanded.set(true)">{{ plural(hiddenCount(), 'weitere Mail', 'weitere Mails') }} zeigen</button>
+          }
+        </div>
+      } @else if (s.enabled && s.lastSyncAt) {
+        <p class="note">Seit der ersten Prüfung ist keine Mail von außerhalb der Firma eingegangen.</p>
+      }
+
+      <p class="note">
+        Mails von Kollegen, automatische Absender, Junk und Entwürfe bleiben außen vor. Verschickt wird nichts von allein: Jede Antwort gibst
+        du unter „Heute“ selbst frei.
+      </p>
+    } @else {
+      <span class="loader" aria-label="Wird eingerichtet"></span>
+    }
+  } @else if (loadFailed()) {
+    <p class="note">Der Status konnte nicht geladen werden.</p>
+    <button type="button" class="pill" (click)="load()">Erneut versuchen</button>
+  } @else {
+    <span class="loader" aria-label="Wird geladen"></span>
+  }
+</section>

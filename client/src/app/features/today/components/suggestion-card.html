@@ -5,10 +5,20 @@
   <div class="stamp stamp--reject" aria-hidden="true" [style.opacity]="rejectStamp()">Verwerfen</div>
 
   <div class="top">
-    <span class="kind">
-      <app-icon [name]="s.kind" [size]="compact() ? 15 : 17" />
-      {{ s.kindLabel }}
-    </span>
+    @if (s.call; as call) {
+      <a class="kind kind--link" [href]="call.href" [attr.title]="call.number + ' anrufen'" draggable="false">
+        <app-icon [name]="s.kind" [size]="compact() ? 15 : 17" />
+        {{ s.kindLabel }}
+        @if (!compact()) {
+          <span class="kind__number">{{ call.number }}</span>
+        }
+      </a>
+    } @else {
+      <span class="kind" [attr.title]="s.kind === 'call' ? 'Keine Telefonnummer im CRM hinterlegt' : null">
+        <app-icon [name]="s.kind" [size]="compact() ? 15 : 17" />
+        {{ s.kindLabel }}
+      </span>
+    }
     <span class="confidence">
       <span class="confidence__bars" aria-hidden="true">
         @for (on of confidenceBars(); track $index) {
@@ -22,7 +32,18 @@
   <div class="contact">
     <div class="avatar" [style.background-color]="s.contact.avatarColor" aria-hidden="true">{{ s.contact.initials }}</div>
     <div class="contact__text">
-      <div class="contact__name">{{ s.contact.name }}</div>
+      @if (s.contact.link; as link) {
+        <a
+          class="contact__name contact__name--link"
+          routerLink="/customers"
+          [queryParams]="link"
+          title="Im CRM öffnen"
+          draggable="false"
+          >{{ s.contact.name }}</a
+        >
+      } @else {
+        <div class="contact__name">{{ s.contact.name }}</div>
+      }
       <div class="contact__role">{{ s.contact.role ? s.contact.role + ' · ' + s.contact.company : s.contact.company }}</div>
     </div>
   </div>

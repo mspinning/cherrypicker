@@ -119,7 +119,7 @@ Der Server steht im selben Netz wie Postgres, Keycloak und Bifrost. Er ruft desh
 
 ## Microsoft 365 und Kundenimport
 
-Im Profil verbindet jeder Nutzer sein Microsoft-365-Konto. Das CRM darf dann Mails lesen sowie Kalendertermine lesen und schreiben (delegierte Berechtigungen `Mail.Read`, `Calendars.ReadWrite`, `User.Read`, `offline_access`). Danach erkennt ein Import die Kunden in den Mails und legt Firmen und Ansprechpartner an. Unter **Kunden** (Menü oben) sind sie für alle Nutzer zu finden.
+Im Profil verbindet jeder Nutzer sein Microsoft-365-Konto. Das CRM darf dann Mails lesen sowie Kalendertermine lesen und schreiben (delegierte Berechtigungen `Mail.Read`, `Calendars.ReadWrite`, `User.Read`, `offline_access`). Danach erkennt ein Import die Kunden in den Mails und legt Firmen und Ansprechpartner an. Unter **Kunden** (Menü oben) sind sie für alle Nutzer zu finden. Ab dann prüft der Server neue Mails im Hintergrund: Neue Kunden kommen ins CRM, aus Vertriebschancen werden Aufgaben mit Antwortentwurf (siehe „Neue Mails im Hintergrund“).
 
 ### Einrichtung (einmalig)
 
@@ -179,24 +179,50 @@ queued ──► scanning ──────────────────
 - Wie bei den Wissensquellen ist die Tabelle `mail_import_jobs` die Warteschlange. Nach einem Neustart beginnt ein unterbrochener Scan neu, eine laufende Analyse macht mit den offenen Gegenseiten weiter. Pro Nutzer läuft höchstens ein Import (partieller Unique-Index), insgesamt zwei gleichzeitig, je Import werden drei Gegenseiten parallel eingeordnet. Graph-Throttling (429, `Retry-After`) wird abgewartet. Antwortet das LLM mehrmals hintereinander nicht oder ist es falsch konfiguriert, bricht der Import mit einer Meldung im Profil ab.
 - Ausgelegt auf **eine** Server-Instanz, wie die Wissensquellen.
 
+### Neue Mails im Hintergrund
+
+Sobald ein Postfach verbunden ist, schaut der Server regelmäßig hinein (Standard: alle 2 Minuten, `MAIL_SYNC_INTERVAL_MINUTES`, `0` schaltet es ab). Daraus entsteht zweierlei: Neue Kunden und Interessenten landen im CRM, und steckt in einer Mail eine Vertriebschance, wartet unter „Heute“ eine Aufgabe mit fertigem Antwortentwurf. Das Panel „Neue Mails“ im Profil zeigt den Stand, einen Schalter, „Jetzt prüfen“ und zu jeder geprüften Mail, was daraus wurde und warum.
+
+```
+je Postfach, alle n Minuten
+  Mails seit der letzten Prüfung lesen (alle Ordner, nur Köpfe) ─► nach Gegenseite gruppieren
+    ├─ schon Kunde im CRM ─────────────────────────────────┐
+    ├─ Regel oder frühere Entscheidung: kein Kunde ─► aussortiert
+    └─ unbekannt ─► LLM ordnet ein (wie beim Import) ──────┤ Kunde/Interessent: ins CRM
+                                                           ▼
+            je Unterhaltung die neueste eingehende Mail ─► LLM: Chance? ─► Aufgabe mit Entwurf
+```
+
+- **Periodisch statt Push:** Der Server fragt Graph nach allen Mails ab einem Zeitstempel (`mail_sync_states.checked_until`) und liest die letzten fünf Minuten jedes Mal noch einmal mit. Das erfasst das ganze Postfach, also auch Mails, die eine Outlook-Regel beim Eingang in einen Unterordner schiebt. Die Delta-Abfrage von Graph gibt es nur je Ordner. Jede Mail wird genau einmal behandelt: `mail_sync_items` hat einen Unique-Index auf Nutzer und unveränderliche Graph-ID. Benachrichtigungen von Graph (Webhooks) brauchen eine öffentlich erreichbare HTTPS-Adresse und sind nicht gebaut. Sie müssten nur `MailSyncWorker.kick()` auslösen.
+- **Erste Prüfung:** schaut 24 Stunden zurück (`MAIL_SYNC_LOOKBACK_HOURS`), damit gleich etwas zu sehen ist. Nach einer Pause (Server aus) holt der Server höchstens sieben Tage nach. Wer den Schalter im Profil wieder einschaltet, macht mit den Mails ab diesem Moment weiter.
+- **Wer ist Kunde?** In dieser Reihenfolge: von einem Nutzer ignoriert, schon im CRM (Firma über die Domain, Privatpersonen über die Adresse), Regeln (bekannte Dienste, nur eingehend und von Outlook unter „Sonstige“ einsortiert), frühere sichere Entscheidungen aus `crm_party_decisions`, sonst das LLM mit demselben Klassifizierer wie beim Import. `customer` und `prospect` ab 60 % schreibt derselbe Merge ins CRM, also ohne Duplikate und ohne Bestehendes zu überschreiben. Das gilt auch für Mails, die der Nutzer selbst an jemand Neuen schreibt, etwa ein Angebot. Mails unter Kollegen, automatische Absender, Entwürfe, Junk und Papierkorb bleiben außen vor.
+- **Ist es eine Chance?** Für die neueste eingehende Mail jeder Unterhaltung mit einem Kunden oder Interessenten liest ein zweiter LLM-Aufruf: den neuen Text, den zitierten Verlauf, Zusammenfassung und Themen der Firma, die letzten Mails (Betreff und Vorschau), Notizen aus dem CRM und die vier besten Treffer der Wissensbasis. Die Antwort kommt als erzwungener Tool-Call: Chance ja oder nein, der Schritt (`mail`, `angebot`, `termin`, `anruf`), Titel, Entwurf, Begründung, Zitat und Sicherheit. Ab 60 % entsteht die Aufgabe. Ohne LLM erledigt sind Unterhaltungen, die schon beantwortet sind, zu denen noch eine Aufgabe offen ist, sowie Abwesenheitsnotizen und Antworten auf Termineinladungen.
+- **Der Entwurf** nimmt Fakten nur aus der Wissensbasis und dem Mailverkehr. Was fehlt, steht als Platzhalter in eckigen Klammern da (`[Preis]`), Zusagen zu Preis, Rabatt, Umfang oder Termin macht er nur, wenn sie ausdrücklich dort stehen. Zitat und Position des Absenders zählen nur, wenn sie wörtlich in der Mail vorkommen. Der Mailtext gilt dem Modell als Inhalt, nicht als Anweisung. Verschickt wird nichts: Jede Aufgabe gibt der Nutzer selbst frei.
+- **Die Aufgabe** ist während der Bürozeit (Mo–Fr, 9–18 Uhr deutscher Zeit) sofort fällig, sonst am nächsten Arbeitsmorgen. Als Belege stehen das Zitat aus der Mail, der Stand aus dem CRM und die gelesenen Wissensquellen an der Karte. „Heute“ holt neue Aufgaben alle 30 Sekunden nach und hängt sie hinten an, ohne die Karte auf dem Bildschirm zu verschieben.
+- **Fehler:** Antwortet das LLM oder Graph nicht, bricht die Prüfung ab. Was bis dahin behandelt wurde, bleibt behandelt, der Rest kommt beim nächsten Versuch dran. Die Pause verdoppelt sich mit jedem Fehlschlag bis zu einer Stunde, das Profil nennt den Grund. Liefert das Modell zu einer einzelnen Mail nichts Verwertbares, gilt nur diese Mail als fehlgeschlagen.
+- **Datenschutz:** `mail_sync_items` hält je Mail Absender, Betreff und Ergebnis fest und ist nur für den Postfach-Inhaber sichtbar, wie die Mail-Aktivitäten. Mail-Texte werden nicht gespeichert. Die Aufgabe kann aber ein Zitat (bis 400 Zeichen) enthalten und gehört allein dem Postfach-Inhaber. Die gelesenen Ausschnitte gehen wie beim Import an das konfigurierte LLM.
+- **Trennen** des Postfachs löscht den Zeitplan. Was geprüft wurde, bleibt gemerkt, ein neu verbundenes Postfach behandelt also nichts doppelt.
+- Geprüft werden höchstens zwei Postfächer gleichzeitig. Ausgelegt auf **eine** Server-Instanz.
+
 ### Kalender
 
 `CalendarService` (exportiert vom `MicrosoftModule`) und `/api/calendar/events` lesen Termine (Serien aufgelöst, in UTC) und legen Termine an, ändern und löschen sie, auf Wunsch mit Teams-Link und Einladungen. Das Profil zeigt die nächsten Termine. Gedacht ist das für die nächste Ausbaustufe, damit freigegebene „Termin“-Vorschläge direkt im Kalender landen.
 
 ### Nächste Ausbaustufe
 
-Der regelmäßige Abgleich im Hintergrund für alle verbundenen Nutzer (neueste Mails → Vorschläge für die nächste beste Opportunity) kann auf Folgendem aufbauen: `GraphClient`, `CrmMergeService`, die Entscheidungen in `crm_party_decisions` (bekannte Dienstleister kosten keinen LLM-Aufruf), unveränderliche Mail-IDs und `MicrosoftEvents`. Für das inkrementelle Lesen bietet sich die Delta-Abfrage von Graph an (`/me/mailFolders/{id}/messages/delta`).
+- **Freigaben ausführen:** Eine freigegebene Mail-Aufgabe könnte als Entwurf in Outlook landen oder direkt verschickt werden. Dafür braucht die App zusätzlich `Mail.ReadWrite` bzw. `Mail.Send`. Termine kann `CalendarService` schon heute eintragen.
+- **Sofort statt alle paar Minuten:** Graph-Benachrichtigungen (Webhooks) auf `me/messages`, sobald das CRM unter einer öffentlichen HTTPS-Adresse läuft.
 
 ## Aufgaben („Heute“)
 
 Die Karten auf „Heute“ sind Zeilen der Tabelle `tasks`. Jede Aufgabe gehört genau einem Vertriebsmitarbeiter (`assignee_id` → `users`, wird mit dem Nutzer gelöscht). Jeder sieht und entscheidet nur seine eigenen, fremde Aufgaben beantwortet die API mit `404`.
 
-- **Herkunft:** Aufgaben entstehen aus Sprachanrufen (siehe „Sprachanruf mit Cherry“) und, solange es keine echten gibt, als Demo-Aufgaben.
+- **Herkunft:** Aufgaben entstehen aus neuen Mails (siehe „Neue Mails im Hintergrund“), aus Sprachanrufen (siehe „Sprachanruf mit Cherry“) und, solange es keine echten gibt, als Demo-Aufgaben.
 - **Inhalt:** Art (`mail`, `call`, `offer`, `meeting`), Titel, Kontakt und Deal als Momentaufnahme für die Karte (noch ohne Verknüpfung zu `crm_contacts`), Entwurf, Begründung mit gewichteten Belegen (`evidence`, JSONB), bester Zeitpunkt (`due_at`) und letzter Kontakt als Zeitstempel. Texte wie „vor 9 Tagen“ oder „Heute, 10:00 Uhr“ rechnet der Client daraus.
 - **Entscheidung:** `status` ist `open`, `approved` oder `rejected`, dazu `decided_at`. Wer den Entwurf vor der Freigabe ändert, dessen Text steht in `final_draft`, der Vorschlag in `draft` bleibt erhalten. „Rückgängig“ öffnet die Aufgabe wieder.
 - **Heute-Ansicht:** `GET /api/tasks?decidedSince=<Tagesbeginn>` liefert zuerst die seit Tagesbeginn entschiedenen Aufgaben in der Reihenfolge der Entscheidung, dann die offenen nach `due_at`. Die Entscheidungen überstehen so ein Neuladen, am nächsten Tag sind sie aus der Liste verschwunden.
-- **Demo-Aufgaben:** Mit `SEED_DEMO_TASKS=true` (Standard in `docker-compose.yml`) bekommt beim Serverstart jeder freigegebene Nutzer, der noch keine Aufgabe hat, sieben Demo-Aufgaben (`server/src/tasks/demo-tasks.ts`), signiert mit seinem Vornamen. Wer später freigegeben wird, bekommt sie beim nächsten Start. „Demo neu starten“ öffnet alle entschiedenen Aufgaben des Nutzers wieder, auch die früherer Tage.
-- Eine Freigabe löst noch nichts aus (kein Versand, kein Kalendereintrag). Die nächste Ausbaustufe schreibt auch Vorschläge aus dem Postfach in dieselbe Tabelle.
+- **Demo-Aufgaben:** Mit `SEED_DEMO_TASKS=true` (Standard in `docker-compose.yml`) bekommt beim Serverstart jeder freigegebene Nutzer, der noch keine Aufgabe hat, bis zu sieben Demo-Aufgaben (`server/src/tasks/demo-tasks.ts`), signiert mit seinem Vornamen. Jede dreht sich um einen Ansprechpartner aus dem CRM: je einer aus den Firmen mit dem jüngsten Kontakt, mit Mail-Adresse und einem Thema an der Firma. Die Karte öffnet so den Kunden und kennt die Nummer für den Anruf. Anlass, Deal und Belege sind erfunden. Solange das CRM leer ist, entstehen keine Demo-Aufgaben, der nächste Start holt sie nach. Wer später freigegeben wird, bekommt sie beim nächsten Start. „Demo neu starten“ öffnet alle entschiedenen Aufgaben des Nutzers wieder, auch die früherer Tage.
+- Eine Freigabe löst noch nichts aus (kein Versand, kein Kalendereintrag).
 
 ## Sprachanruf mit Cherry
 
@@ -231,31 +257,6 @@ Alle Modelle laufen lokal über Ollama und werden wie bisher über Bifrost anges
 - **Sprachausgabe** gibt es in Ollama nicht. Cherry spricht mit der Stimme des Geräts, ohne Modell und ohne Server. Bevorzugt werden Stimmen, die auf dem Gerät selbst laufen.
 - **Tempo** auf einem M5 Max: Eine Antwort im Gespräch kommt nach ein bis sieben Sekunden (am längsten, wenn der Agent im CRM und in der Wissensbasis nachschaut), das Aufräumen danach braucht etwa 15 Sekunden je Aufgabe. Der Agent läuft ohne „Thinking“ (`reasoning_effort: none`), mit dauerte das Aufräumen doppelt so lang.
 - Für ein gehostetes Modell genügt es, `VOICE_AGENT_MODEL` bzw. `VOICE_STT_MODEL` umzustellen. Das Modell für die Spracherkennung muss Audio in Chat-Anfragen annehmen (`input_audio`).
-
-## LinkedIn-Nachrichten (Chrome-Erweiterung)
-
-Der LinkedIn-Button im Header (links neben Einstellungen und Profil) schaut nach neuen LinkedIn-Nachrichten. Dafür nutzt er die LinkedIn-Anmeldung, die im Browser schon besteht. Gibt es keine, meldet das CRM das nur. Es meldet sich nie selbst an.
-
-```
-CRM-Seite ─ postMessage ─► bridge.js (Content-Script auf dem CRM)
-                               │ chrome.runtime.connect
-                               ▼
-                          background.js ─► Tab linkedin.com/messaging/thread/new/
-                               │             (Sitzung prüfen, Liste lesen: inbox-reader.js)
-                               ▼
-CRM-Seite ◄─ Fortschritt und Ergebnis ─┘   danach zurück zum CRM-Tab
-```
-
-- **Eigene Erweiterung statt Browser MCP.** Browser MCP verbindet KI-Clients (Cursor, Claude Desktop) über einen lokalen MCP-Server mit dem Browser. Eine Web-App kann ihn nicht direkt ansprechen. Für den festen Ablauf „LinkedIn öffnen, Posteingang lesen“ braucht es weder MCP noch ein LLM.
-- **Quelle:** `client/chrome-extension/` (Manifest V3). Der Build liefert den Ordner unter `/chrome-extension/` mit aus (`angular.json`, Assets).
-- **Erkennung:** Beim Klick fragt das CRM per `postMessage`, ob die Bridge antwortet (800 ms). Ohne Antwort zeigt das Panel die Installation. Nach der Installation verbindet sich die Erweiterung mit offenen CRM-Tabs, das Panel macht dann von selbst weiter.
-- **Installation:** „Erweiterung herunterladen“ packt die Dateien im Browser zu `cherrypick-linkedin.zip`. Das Manifest wird dabei auf den Host angepasst, von dem das CRM kommt (z. B. `https://crm.example.com/*`), alle Ports eingeschlossen. Danach unter `chrome://extensions` den Entwicklermodus einschalten und „Entpackte Erweiterung laden“. Für die Entwicklung lässt sich `client/chrome-extension/` direkt laden, das Manifest dort gilt für `http://localhost`.
-- **Ablauf:** Ein offener Messaging-Tab wird wiederverwendet, sonst öffnet die Erweiterung `/messaging/thread/new/`. Diese Ansicht zeigt die Liste, ohne eine Unterhaltung zu öffnen. Unter `/messaging/` würde LinkedIn die neueste Unterhaltung öffnen und als gelesen markieren. Der Tab steht beim Lesen vorn, weil Chrome Hintergrund-Tabs nicht fertig rendert. Danach wechselt Chrome zurück zum CRM.
-- **Angemeldet?** Leitet LinkedIn auf `/login`, `/uas/…`, `/authwall` oder `/checkpoint/…` um oder zeigt ein Login-Formular, lautet das Ergebnis „nicht angemeldet“. Bei `/checkpoint/challenge` fragt LinkedIn nach einer Sicherheitsprüfung, die der Nutzer selbst erledigt.
-- **Gelesen** werden die neuesten 12 Unterhaltungen (Name, Vorschau, Zeit, ungelesen) und der Zähler in LinkedIns Kopfleiste. Die Erweiterung klickt und tippt nichts. Das Ergebnis bleibt im Browser (Signal im `LinkedInStore`) und geht nicht an den Server.
-- **Berechtigungen:** `scripting`, Host-Zugriff auf `https://www.linkedin.com/*` und den CRM-Host. Keine Cookies, kein `tabs`.
-- **Grenzen:** Der Leser hängt an LinkedIns Seitenaufbau (Klassen `msg-conversation-*`, Fallback über Links auf `/messaging/thread/`). Baut LinkedIn um, meldet das Panel „anders aufgebaut als erwartet“, dann `inbox-reader.js` anpassen. LinkedIns Nutzungsbedingungen untersagen automatisierte Zugriffe. Die Erweiterung liest deshalb nur auf Klick und nie im Hintergrund.
-- **Chrome Web Store:** Für eine Installation ohne Entwicklermodus muss die Erweiterung dort veröffentlicht werden. Das Manifest braucht dann die festen CRM-Hosts in `host_permissions` und `content_scripts.matches`.
 
 ## Endpunkte
 
@@ -298,6 +299,9 @@ CRM-Seite ◄─ Fortschritt und Ergebnis ─┘   danach zurück zum CRM-Tab
 | POST    | `/api/mail-import/jobs`                    | Bearer | `mode` (`test` \| `full`), `maxMessages` (Test), `months` (Voll, leer = alles) |
 | POST    | `/api/mail-import/jobs/:id/cancel`         | Bearer | –                                      |
 | GET     | `/api/mail-import/jobs/:id/groups`         | Bearer | Query: `status`, `offset`, `limit` (Entscheidungen je Gegenseite) |
+| GET     | `/api/mail-sync`                           | Bearer | – (Stand der Prüfung neuer Mails, letzte geprüfte Mails) |
+| PATCH   | `/api/mail-sync`                           | Bearer | `enabled` (eigener Schalter)           |
+| POST    | `/api/mail-sync/run`                       | Bearer | – (jetzt prüfen statt beim nächsten Intervall) |
 | GET     | `/api/crm/summary`                         | Bearer | –                                      |
 | GET     | `/api/crm/companies`                       | Bearer | Query: `q`, `relationship`, `offset`, `limit` |
 | GET     | `/api/crm/companies/:id`                   | Bearer | – (mit Personen und eigenen Mails)     |

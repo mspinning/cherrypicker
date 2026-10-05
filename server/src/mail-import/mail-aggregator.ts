@@ -129,15 +129,13 @@ export class MailAggregator {
   }
 
   private groupOf(address: string, at: string): MailGroup {
-    const domain = registrableDomain(domainOf(address));
-    const business = !isFreemail(domain);
-    const key = business ? `domain:${domain}` : `email:${address}`;
+    const { key, domain } = partyOf(address);
     let group = this.groups.get(key);
     if (!group) {
       group = {
         key,
-        domain: business ? domain : null,
-        label: business ? domain : address,
+        domain,
+        label: domain ?? address,
         participants: new Map(),
         messages: [],
         messageCount: 0,
@@ -155,6 +153,15 @@ export class MailAggregator {
   private isOurs(address: string): boolean {
     return this.ctx.ownAddresses.has(address) || this.ctx.internalDomains.has(registrableDomain(domainOf(address)));
   }
+}
+
+/**
+ * The counterpart an address belongs to: its business domain, or the address
+ * itself for freemail. The key is the one of crm_party_decisions.
+ */
+export function partyOf(address: string): { key: string; domain: string | null } {
+  const domain = registrableDomain(domainOf(address));
+  return isFreemail(domain) ? { key: `email:${address}`, domain: null } : { key: `domain:${domain}`, domain };
 }
 
 function nameOf(address: GraphAddress | undefined): string {

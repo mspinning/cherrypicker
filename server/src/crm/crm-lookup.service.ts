@@ -24,6 +24,25 @@ export interface ContactMatch {
   company: { id: string; name: string } | null;
 }
 
+/** Who a name is in the CRM, see `CrmLookupService.identify` */
+export interface Identified {
+  /** The person; or the company, where the name is a company's own */
+  party: { kind: 'person' | 'company'; id: string } | null;
+  /** The number to call: the person's mobile, else their landline, else the company's */
+  phone: string | null;
+}
+
+/** Somebody to turn to at a customer, see `CrmLookupService.recentPeople` */
+export interface RecentPerson {
+  firstName: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: { name: string; topics: string[] };
+}
+
+/** A company name this short is not looked for inside longer ones */
+const MIN_NAME_PART = 4;
+
 /**
  * Finds customers by a name somebody said or typed from memory: "Kessler"
  * finds "Kässler & Söhne GmbH", "Herr Becker" finds Thomas Becker. Trigram
@@ -61,6 +80,109 @@ export class CrmLookupService implements OnApplicationBootstrap {
         )
       : [];
     return { companies, contacts };
+  }
+
+  /**
+   * Who the contact of a task is in the CRM. A task only keeps names, written
+   * as they were said or read: "Arnold Autohaus" for "Testdaten Arnold
+   * Autohaus GmbH". Nothing is guessed here. A person counts with exactly this
+   * first and last name, at the named company if there is one. A company
+   * counts with exactly this name or, failing that, with the name as a whole
+   * part of its own. Whenever two fit, it is nobody. Same order as `contacts`.
+   */
+  async identify(contacts: { name: string; company: string | null }[]): Promise<Identified[]> {
+    const keys = contacts.map(({ name, company }) => {
+      const parsed = parseDisplayName(name, '');
+      const person = normalizePersonName(parsed.firstName, parsed.lastName);
+      return {
+        // A first name alone is not a person
+        person: person.includes(' ') ? person : '',
+        company: normalizeCompanyName(company ?? ''),
+        // "Arnold Autohaus anrufen": the contact is the company itself
+        nameAsCompany: normalizeCompanyName(name),
+      };
+    });
+    const personNames = [...new Set(keys.map((key) => key.person).filter(Boolean))];
+    const companyNames = [...new Set(keys.flatMap((key) => [key.company, key.nameAsCompany]).filter(Boolean))];
+
+    const [people, companies] = await Promise.all([
+      personNames.length
+        ? this.dataSource.query<
+            { id: string; name: string; phone: string | null; mobile: string | null; company: string | null; company_phone: string | null }[]
+          >(
+            `SELECT k.id, k.normalized_name AS name, k.phone, k.mobile, c.normalized_name AS company, c.phone AS company_phone
+             FROM crm_contacts k
+             LEFT JOIN crm_companies c ON c.id = k.company_id
+             WHERE k.normalized_name = ANY($1)`,
+            [personNames],
+          )
+        : [],
+      companyNames.length
+        ? this.dataSource.query<{ id: string; name: string; phone: string | null }[]>(
+            `SELECT c.id, c.normalized_name AS name, c.phone
+             FROM crm_companies c
+             WHERE EXISTS (
+               SELECT 1 FROM unnest($1::text[]) AS wanted(name)
+               WHERE c.normalized_name = wanted.name
+                  OR (length(wanted.name) >= ${MIN_NAME_PART} AND position(' ' || wanted.name || ' ' IN ' ' || c.normalized_name || ' ') > 0)
+             )`,
+            [companyNames],
+          )
+        : [],
+    ]);
+
+    const companyNamed = (name: string) => {
+      const exact = companies.filter((c) => c.name === name);
+      const found = exact.length ? exact : companies.filter((c) => carries(c.name, name));
+      return name && found.length === 1 ? found[0] : null;
+    };
+
+    return keys.map((key): Identified => {
+      const namesakes = people.filter((k) => k.name === key.person && (!key.company || (k.company !== null && carries(k.company, key.company))));
+      if (key.person && namesakes.length === 1) {
+        const [{ id, mobile, phone, company_phone }] = namesakes;
+        return { party: { kind: 'person', id }, phone: mobile || phone || company_phone || null };
+      }
+      // Only where no other company is named: "Arnold Autohaus" at "Arnold Autohaus GmbH", not "Kessler" at "Nordwerk"
+      const isCompany = !key.company || carries(key.company, key.nameAsCompany) || carries(key.nameAsCompany, key.company);
+      const itself = isCompany ? companyNamed(key.nameAsCompany) : null;
+      if (itself) return { party: { kind: 'company', id: itself.id }, phone: itself.phone };
+      // Somebody the CRM does not know, at a company it does: its number reaches them
+      return { party: null, phone: companyNamed(key.company)?.phone ?? null };
+    });
+  }
+
+  /**
+   * One person from each of the companies last in contact, the most recent
+   * company first. Only people with an address, at a company with a topic to
+   * talk about, whom `identify` finds again by their name.
+   */
+  async recentPeople(limit: number): Promise<RecentPerson[]> {
+    const rows = await this.dataSource.query<
+      { id: string; first_name: string; full_name: string; job_title: string | null; company: string; topics: string[] }[]
+    >(
+      `SELECT id, first_name, full_name, job_title, company, topics
+       FROM (SELECT DISTINCT ON (c.id) k.id, k.first_name, k.full_name, k.job_title, c.name AS company, c.topics,
+                    c.last_contact_at AS company_last_contact_at
+             FROM crm_contacts k
+             JOIN crm_companies c ON c.id = k.company_id
+             WHERE k.first_name <> '' AND k.last_name <> '' AND k.email IS NOT NULL AND cardinality(c.topics) > 0
+             ORDER BY c.id, k.last_contact_at DESC NULLS LAST, k.id) k
+       ORDER BY k.company_last_contact_at DESC NULLS LAST, k.id
+       LIMIT $1`,
+      // Some to spare for namesakes
+      [limit * 2],
+    );
+    const found = await this.identify(rows.map((row) => ({ name: row.full_name, company: row.company })));
+    return rows
+      .filter((row, i) => found[i].party?.id === row.id)
+      .slice(0, limit)
+      .map((row) => ({
+        firstName: row.first_name,
+        fullName: row.full_name,
+        jobTitle: row.job_title,
+        company: { name: row.company, topics: row.topics },
+      }));
   }
 
   private async companies(name: string): Promise<CompanyMatch[]> {
@@ -117,6 +239,11 @@ export class CrmLookupService implements OnApplicationBootstrap {
       company: r.company_id ? { id: r.company_id, name: r.company_name ?? '' } : null,
     }));
   }
+}
+
+/** `name` is `wanted`, or `wanted` is a whole part of it: "arnold autohaus" in "testdaten arnold autohaus", not "arnold auto". */
+function carries(name: string, wanted: string): boolean {
+  return name === wanted || (wanted.length >= MIN_NAME_PART && ` ${name} `.includes(` ${wanted} `));
 }
 
 function likePattern(value: string): string {

@@ -18,6 +18,7 @@ import { MicrosoftStore } from '../../core/microsoft/microsoft.store';
 import { Icon } from '../../shared/icon';
 import { TodayStore } from '../today/today.store';
 import { MailImportPanel } from './mail-import-panel';
+import { MailSyncPanel } from './mail-sync-panel';
 import { MicrosoftPanel } from './microsoft-panel';
 
 const DATE = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -27,7 +28,7 @@ const TIME = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digi
 @Component({
   selector: 'app-profile-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, MicrosoftPanel, MailImportPanel],
+  imports: [RouterLink, Icon, MicrosoftPanel, MailSyncPanel, MailImportPanel],
   templateUrl: './profile-page.html',
   styleUrl: './profile-page.scss',
 })

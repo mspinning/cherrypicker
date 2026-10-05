@@ -15,6 +15,8 @@
         <p>Deine Aufgaben konnten nicht geladen werden.</p>
         <button type="button" class="retry" (click)="store.load()">Erneut versuchen</button>
       </div>
+    } @else if (store.viewing()) {
+      <app-decided-view [compact]="!isDesktop()" />
     } @else if (store.done()) {
       <app-done-panel [compact]="!isDesktop()" />
     } @else {
@@ -32,9 +34,11 @@
   </section>
 
   @if (isDesktop()) {
-    <aside class="aside" [attr.aria-label]="store.done() ? 'Heute entschieden' : 'Begründung'">
+    <aside class="aside" [attr.aria-label]="store.done() && !store.viewing() ? 'Heute entschieden' : 'Begründung'">
       @if (store.loadState() === 'ready') {
-        @if (store.done()) {
+        @if (store.viewing(); as viewed) {
+          <app-reason-panel class="aside__reason" [suggestion]="viewed" />
+        } @else if (store.done()) {
           <div class="aside__eyebrow">Heute entschieden</div>
           <app-decision-list />
         } @else {

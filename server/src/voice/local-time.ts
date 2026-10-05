@@ -151,6 +151,12 @@ export function onWorkday(zone: string, date: Date): Date {
   return zoned(zone, friday.year, friday.month, friday.day, p.hour, p.minute);
 }
 
+/** Mon–Fri between 9 and 18 o'clock in `zone`. */
+export function isOfficeTime(zone: string, date: Date): boolean {
+  const p = partsIn(zone, date);
+  return p.weekday >= 1 && p.weekday <= 5 && p.hour >= 9 && p.hour < 18;
+}
+
 /** A full hour within office hours (Mon–Fri, 9–17), at least an hour away. */
 export function nextOfficeHour(zone: string, now: Date): Date {
   const start = partsIn(zone, new Date(now.getTime() + 90 * 60_000));

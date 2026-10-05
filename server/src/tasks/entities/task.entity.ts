@@ -35,7 +35,8 @@ export interface TaskEvidence {
  * A proposed next step with a customer, assigned to one sales person and
  * shown as a card on "Heute". The person approves it (optionally with an
  * edited draft) or rejects it. Contact and deal are a snapshot for the card,
- * not links into the CRM.
+ * not links into the CRM; the person behind the name is looked up when the
+ * task is read, see `TasksService`.
  */
 @Entity('tasks')
 @Index(['assigneeId', 'status'])

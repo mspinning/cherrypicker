@@ -14,11 +14,6 @@ export function addressOf(parts: { street: string | null; postalCode: string | n
   return [parts.street, place, parts.country].filter(Boolean).join(', ');
 }
 
-/** Only digits and a leading +, for tel: links */
-export function telOf(phone: string): string {
-  return phone.replace(/(?!^\+)[^\d]/g, '');
-}
-
 /** Non-empty parts joined with " · " (templates cannot call filter(Boolean)) */
 export function joined(parts: (string | null | undefined)[]): string {
   return parts.filter(Boolean).join(' · ');

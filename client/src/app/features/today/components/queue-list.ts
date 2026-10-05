@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { QueueItem } from '../suggestion.model';
 import { TodayStore } from '../today.store';
 
-/** Desktop sidebar: today's suggestions in order with their status. */
+/** Desktop sidebar: today's suggestions in order with their status; a decided one opens again on click, to read. */
 @Component({
   selector: 'app-queue-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -13,16 +14,27 @@ import { TodayStore } from '../today.store';
 
     <ol class="list" aria-label="Vorschläge">
       @for (q of store.queue(); track q.id) {
-        <li class="row" [class.is-current]="q.status === 'current'" [class.is-waiting]="q.status === 'waiting'" [attr.aria-current]="q.status === 'current' ? 'step' : null">
-          <span class="row__pos">{{ q.position }}</span>
-          <span class="row__text">
-            <span class="row__name">{{ q.name }}</span>
-            <span class="row__meta">{{ q.kindLabel }} · {{ q.company }}</span>
-          </span>
-          <span class="row__status">
-            <span class="dot" [attr.data-status]="q.status"></span>
-            {{ q.statusLabel }}
-          </span>
+        <li class="item" [attr.aria-current]="q.status === 'current' ? 'step' : null">
+          <button
+            type="button"
+            class="row"
+            [class.is-shown]="q.shown"
+            [class.is-waiting]="q.status === 'waiting'"
+            [disabled]="q.status === 'waiting'"
+            [attr.aria-pressed]="q.decided ? q.shown : null"
+            [attr.title]="q.decided ? 'Ansehen' : null"
+            (click)="open(q)"
+          >
+            <span class="row__pos">{{ q.position }}</span>
+            <span class="row__text">
+              <span class="row__name">{{ q.name }}</span>
+              <span class="row__meta">{{ q.kindLabel }} · {{ q.company }}</span>
+            </span>
+            <span class="row__status">
+              <span class="dot" [attr.data-status]="q.status"></span>
+              {{ q.statusLabel }}
+            </span>
+          </button>
         </li>
       }
     </ol>
@@ -36,4 +48,10 @@ import { TodayStore } from '../today.store';
 })
 export class QueueList {
   protected readonly store = inject(TodayStore);
+
+  /** A decided task opens to read; the current one brings the stack back. */
+  protected open(item: QueueItem): void {
+    if (item.decided) this.store.view(item.id);
+    else this.store.closeView();
+  }
 }

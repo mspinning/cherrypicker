@@ -4,10 +4,10 @@ import { pastelOf } from '../../core/auth/user-display';
 import { CrmApi } from '../../core/crm/crm-api.service';
 import { ContactDetail } from '../../core/crm/crm.models';
 import { Icon } from '../../shared/icon';
-import { errorMessage, formatAgo, formatDate } from '../../shared/format';
+import { errorMessage, formatAgo, formatDate, telOf } from '../../shared/format';
 import { ActivityList } from './activity-list';
 import { NoteList } from './note-list';
-import { initialsOfName, telOf } from './customers-format';
+import { initialsOfName } from './customers-format';
 
 /** One person at a customer, with the own mails exchanged with them. */
 @Component({

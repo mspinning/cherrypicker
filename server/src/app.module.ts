@@ -9,6 +9,7 @@ import { MicrosoftModule } from './integrations/microsoft/microsoft.module';
 import { KeycloakModule } from './keycloak/keycloak.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { MailImportModule } from './mail-import/mail-import.module';
+import { MailSyncModule } from './mail-sync/mail-sync.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 import { VoiceModule } from './voice/voice.module';
@@ -40,6 +41,7 @@ import { VoiceModule } from './voice/voice.module';
     CrmModule,
     MailImportModule,
     TasksModule,
+    MailSyncModule,
     VoiceModule,
   ],
   controllers: [HealthController],

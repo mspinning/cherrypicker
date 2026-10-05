@@ -38,6 +38,14 @@ export function formatNumber(value: number): string {
   return NUMBER.format(value);
 }
 
+/** Only digits and a leading +, for tel: and callto: links; the "(0)" of "+49 (0)40 …" is not dialled */
+export function telOf(phone: string): string {
+  return phone
+    .trim()
+    .replace(/^(\+\d+)\s*\(0\)/, '$1')
+    .replace(/(?!^\+)[^\d]/g, '');
+}
+
 /** "1 Dokument", "3 Dokumente" */
 export function plural(n: number, one: string, many: string): string {
   return `${NUMBER.format(n)} ${n === 1 ? one : many}`;

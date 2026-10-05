@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, input, output, viewChild } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Icon } from '../../../shared/icon';
 import { Suggestion } from '../suggestion.model';
 import { ReasonPanel } from './reason-panel';
@@ -6,7 +7,7 @@ import { ReasonPanel } from './reason-panel';
 @Component({
   selector: 'app-suggestion-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ReasonPanel],
+  imports: [Icon, ReasonPanel, RouterLink],
   host: { '[class.compact]': 'compact()' },
   templateUrl: './suggestion-card.html',
   styleUrl: './suggestion-card.scss',

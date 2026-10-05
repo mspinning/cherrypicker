@@ -123,6 +123,9 @@ services:
       # Chat model that recognizes customers in mails (via Bifrost, allowed for the virtual key)
       LLM_MODEL: ${LLM_MODEL:-}
       MAIL_IMPORT_INTERNAL_DOMAINS: ${MAIL_IMPORT_INTERNAL_DOMAINS:-}
+      # Background check of connected mailboxes for new mails: interval (0 = off) and first look back
+      MAIL_SYNC_INTERVAL_MINUTES: ${MAIL_SYNC_INTERVAL_MINUTES:-2}
+      MAIL_SYNC_LOOKBACK_HOURS: ${MAIL_SYNC_LOOKBACK_HOURS:-24}
       # Voice calls: model that hears (speech-to-text) and the agent's chat model, both via Bifrost
       VOICE_STT_MODEL: ${VOICE_STT_MODEL:-}
       VOICE_AGENT_MODEL: ${VOICE_AGENT_MODEL:-}

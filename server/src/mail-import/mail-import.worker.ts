@@ -1,26 +1,22 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
-import { AppConfig } from '../config/configuration';
 import { CrmMergeService, MergeResult } from '../crm/crm-merge.service';
 import { CrmRelationship } from '../crm/entities/crm-company.entity';
 import { CrmPartyDecision, PartyDecider } from '../crm/entities/crm-party-decision.entity';
 import { GraphClient } from '../integrations/microsoft/graph-client.service';
-import { MicrosoftAuthService } from '../integrations/microsoft/microsoft-auth.service';
 import {
   GraphError,
   MicrosoftAppConfigError,
   MicrosoftNotConnectedError,
   MicrosoftReauthRequiredError,
 } from '../integrations/microsoft/microsoft.errors';
-import { GroupCompany } from '../knowledge/entities/group-company.entity';
 import { LlmError } from '../llm/llm.service';
-import { User } from '../users/user.entity';
-import { cleanAddress, domainOf, isFreemail, isKnownService, registrableDomain } from './addresses';
+import { isKnownService } from './addresses';
 import { MailImportGroup, MailImportGroupStatus } from './entities/mail-import-group.entity';
 import { MailImportJob, MailImportStatus } from './entities/mail-import-job.entity';
 import { MailAggregator, MailGroup } from './mail-aggregator';
+import { MailboxContext } from './mailbox-context.service';
 import {
   ClassifierContext,
   isCustomerVerdict,
@@ -75,7 +71,6 @@ class JobStopped extends Error {}
 export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(MailImportWorker.name);
   private readonly running = new Set<string>();
-  private readonly internalDomains: string[];
   private timer?: NodeJS.Timeout;
   private claiming = false;
   private stopped = false;
@@ -84,17 +79,12 @@ export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy
     @InjectRepository(MailImportJob) private readonly jobs: Repository<MailImportJob>,
     @InjectRepository(MailImportGroup) private readonly groups: Repository<MailImportGroup>,
     @InjectRepository(CrmPartyDecision) private readonly decisions: Repository<CrmPartyDecision>,
-    @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(GroupCompany) private readonly groupCompanies: Repository<GroupCompany>,
     private readonly dataSource: DataSource,
     private readonly graph: GraphClient,
-    private readonly auth: MicrosoftAuthService,
+    private readonly mailbox: MailboxContext,
     private readonly classifier: RelationshipClassifier,
     private readonly merger: CrmMergeService,
-    config: ConfigService<AppConfig, true>,
-  ) {
-    this.internalDomains = config.get('mailImport', { infer: true }).internalDomains.map(registrableDomain);
-  }
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     // An interrupted scan has nothing saved yet: start it over
@@ -170,7 +160,7 @@ export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy
 
   /** Reads all mail headers (newest first) and groups them by counterpart. */
   private async scan(job: MailImportJob): Promise<void> {
-    const ctx = await this.scanContext(job.userId);
+    const ctx = await this.mailbox.scan(job.userId);
     const skipFolders = await this.graph.folderIds(job.userId, SKIP_FOLDERS);
     const aggregator = new MailAggregator(ctx);
 
@@ -204,35 +194,6 @@ export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy
       if (!updated.affected) throw new JobStopped();
     });
     this.logger.log(`Mail import ${job.id}: ${scanned} mails, ${rows.length} counterparts, ${prefiltered} decided by rules`);
-  }
-
-  /** Own addresses and the group's domains: neither ever becomes a customer. */
-  private async scanContext(userId: string): Promise<{ ownAddresses: Set<string>; internalDomains: Set<string> }> {
-    const [me, connection, users] = await Promise.all([
-      this.graph.me(userId),
-      this.auth.connection(userId),
-      this.users.find({ select: { email: true } }),
-    ]);
-    const own = new Set(
-      [
-        me.mail,
-        me.userPrincipalName,
-        connection?.email,
-        ...(me.otherMails ?? []),
-        // "SMTP:max@acme.de" (primary) and "smtp:alias@acme.de"
-        ...(me.proxyAddresses ?? []).filter((a) => /^smtp:/i.test(a)).map((a) => a.slice(5)),
-      ]
-        .map((a) => cleanAddress(a))
-        .filter((a): a is string => !!a),
-    );
-    // Freemail domains of colleagues must not hide every gmail customer
-    const internal = new Set(
-      [...own, ...users.map((u) => u.email)]
-        .map((a) => registrableDomain(domainOf(a)))
-        .filter((d) => d && !isFreemail(d))
-        .concat(this.internalDomains),
-    );
-    return { ownAddresses: own, internalDomains: internal };
   }
 
   private async decisionsFor(keys: string[]): Promise<Map<string, CrmPartyDecision>> {
@@ -281,7 +242,7 @@ export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy
   // ---------- Analysis ----------
 
   private async analyze(job: MailImportJob): Promise<void> {
-    const ctx = await this.classifierContext(job.userId);
+    const ctx = await this.mailbox.classifier(job.userId);
     let failuresInARow = 0;
     let lastFailure = '';
 
@@ -395,19 +356,6 @@ export class MailImportWorker implements OnApplicationBootstrap, OnModuleDestroy
       await this.count(job.id, { groupsAnalyzed: 1, groupsFailed: 1 });
       return message;
     }
-  }
-
-  private async classifierContext(userId: string): Promise<ClassifierContext> {
-    const [user, connection, companies] = await Promise.all([
-      this.users.findOneByOrFail({ id: userId }),
-      this.auth.connection(userId),
-      this.groupCompanies.find({ order: { name: 'ASC' } }),
-    ]);
-    return {
-      ownerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
-      ownerEmail: connection?.email ?? user.email,
-      groupCompanies: companies.map((c) => ({ name: c.name, description: c.description })),
-    };
   }
 
   // ---------- Helpers ----------

@@ -1,18 +1,15 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { initialsOf } from '../core/auth/user-display';
-import { LinkedInStore } from '../core/linkedin/linkedin.store';
 import { UserAdminService } from '../core/users/user-admin.service';
 import { CallStore } from '../core/voice/call.store';
 import { Icon } from '../shared/icon';
-import { LinkedInPanel } from './linkedin-panel';
 
 @Component({
   selector: 'app-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, Icon, LinkedInPanel],
-  host: { '(document:pointerdown)': 'closeLinkedInOutside($event)' },
+  imports: [RouterLink, RouterLinkActive, Icon],
   template: `
     <header class="header">
       <a class="brand" routerLink="/" aria-label="Cherrypick – Heute">
@@ -48,27 +45,6 @@ import { LinkedInPanel } from './linkedin-panel';
             <span class="call__word" aria-hidden="true">Cherry anrufen</span>
           </button>
         }
-        <button
-          #linkedInButton
-          type="button"
-          class="round linkedin"
-          [class.is-active]="linkedInOpen()"
-          aria-haspopup="dialog"
-          [attr.aria-expanded]="linkedInOpen()"
-          [attr.aria-label]="linkedInLabel()"
-          (click)="toggleLinkedIn()"
-          (keydown.escape)="closeLinkedIn()"
-        >
-          <span class="linkedin__word" aria-hidden="true">Linked</span>
-          <svg class="linkedin__bug" viewBox="0 0 20 20" aria-hidden="true">
-            <rect width="20" height="20" rx="3.5" fill="#0A66C2" />
-            <circle cx="5.6" cy="5.3" r="1.5" fill="#fff" />
-            <path d="M5.6 8.3v7.6M10.1 15.9V8.3m0 3.3c0-2 1.1-3.3 2.8-3.3s2.8 1.2 2.8 3.3v4.3" stroke="#fff" stroke-width="2.5" fill="none" />
-          </svg>
-          @if (linkedIn.unread()) {
-            <span class="badge" aria-hidden="true">{{ linkedIn.unread() }}</span>
-          }
-        </button>
         @if (auth.isAdmin()) {
           <a class="round settings" routerLink="/settings" routerLinkActive="is-active" [attr.aria-label]="settingsLabel()">
             <app-icon name="settings" [size]="20" />
@@ -86,9 +62,6 @@ import { LinkedInPanel } from './linkedin-panel';
           {{ initials() || '··' }}
         </a>
       </div>
-      @if (linkedInOpen()) {
-        <app-linkedin-panel (closed)="closeLinkedIn()" />
-      }
     </header>
   `,
   styleUrl: './app-header.scss',
@@ -96,12 +69,7 @@ import { LinkedInPanel } from './linkedin-panel';
 export class AppHeader {
   protected readonly auth = inject(AuthService);
   private readonly userAdmin = inject(UserAdminService);
-  protected readonly linkedIn = inject(LinkedInStore);
   protected readonly call = inject(CallStore);
-
-  private readonly linkedInButton = viewChild.required<ElementRef<HTMLButtonElement>>('linkedInButton');
-  private readonly linkedInPanel = viewChild(LinkedInPanel, { read: ElementRef });
-  protected readonly linkedInOpen = signal(false);
 
   protected readonly initials = computed(() => initialsOf(this.auth.user()));
   protected readonly pendingCount = computed(() => this.userAdmin.pending().length);
@@ -110,37 +78,11 @@ export class AppHeader {
     if (!n) return 'Einstellungen';
     return `Einstellungen – ${n} ${n === 1 ? 'Konto wartet' : 'Konten warten'} auf Freigabe`;
   });
-  protected readonly linkedInLabel = computed(() => {
-    const n = this.linkedIn.unread();
-    return n ? `LinkedIn – ${n} ${n === 1 ? 'neue Nachricht' : 'neue Nachrichten'}` : 'LinkedIn-Nachrichten prüfen';
-  });
 
   constructor() {
     // Admins see at a glance whether someone waits for approval
     effect(() => {
       if (this.auth.isAdmin()) untracked(() => this.userAdmin.load().subscribe({ error: () => {} }));
     });
-  }
-
-  /** Opening means checking: install hint, progress and inbox all show in the panel. */
-  protected toggleLinkedIn(): void {
-    if (this.linkedInOpen()) {
-      this.linkedInOpen.set(false);
-      return;
-    }
-    this.linkedInOpen.set(true);
-    void this.linkedIn.check();
-  }
-
-  protected closeLinkedIn(): void {
-    this.linkedInOpen.set(false);
-    this.linkedInButton().nativeElement.focus();
-  }
-
-  protected closeLinkedInOutside(event: PointerEvent): void {
-    const target = event.target as Node;
-    if (!this.linkedInOpen() || this.linkedInButton().nativeElement.contains(target)) return;
-    if (this.linkedInPanel()?.nativeElement.contains(target)) return;
-    this.linkedInOpen.set(false);
   }
 }

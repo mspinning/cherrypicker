@@ -23,6 +23,13 @@ export class LlmError extends Error {
   }
 }
 
+/** The model answered, but with nothing usable: the next input may work, this one will hardly ever. */
+export class LlmAnswerError extends LlmError {
+  constructor(message: string) {
+    super(message, false);
+  }
+}
+
 export type ChatPart =
   | { type: 'text'; text: string }
   /** Base64 audio for models that hear, e.g. Gemma 4 via Ollama */
@@ -123,9 +130,8 @@ export class LlmService {
         typeof args === 'object' && args !== null ? args : (parseJson(typeof args === 'string' ? args : '') ?? parseJson(message?.content ?? ''));
       if (parsed) return parsed;
       if (attempt < MAX_ATTEMPTS) continue;
-      throw new LlmError(
+      throw new LlmAnswerError(
         choice.finish_reason === 'length' ? 'Antwort des Modells abgeschnitten' : 'Antwort des Modells ohne verwertbares Ergebnis',
-        false,
       );
     }
   }

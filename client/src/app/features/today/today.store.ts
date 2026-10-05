@@ -28,7 +28,8 @@ export type LoadState = 'loading' | 'ready' | 'failed';
 /**
  * State of the "Heute" screen: the signed-in user's tasks as a card stack,
  * the swipe gesture, draft editing and today's decisions. Decisions show
- * right away and are saved on the server in the background.
+ * right away and are saved on the server in the background. A decided task
+ * can be opened again from the lists, to read only.
  */
 @Injectable({ providedIn: 'root' })
 export class TodayStore {
@@ -54,6 +55,9 @@ export class TodayStore {
   readonly editing = signal(false);
   readonly showReason = signal(false);
   private readonly drafts = signal<Record<string, string>>({});
+
+  /** The decided task that is open to read, see `view` */
+  private readonly viewingId = signal<string | null>(null);
   private draftBackup = '';
 
   private leaveTimer?: ReturnType<typeof setTimeout>;
@@ -82,6 +86,18 @@ export class TodayStore {
   readonly upcoming = computed(() => (this.done() ? [] : this.suggestions().slice(this.index() + 1, this.index() + 3)));
   readonly currentDraft = computed(() => this.draftOf(this.current()));
 
+  /** A decided task opened from the list: shown instead of the stack, its decision stays as it is. */
+  readonly viewing = computed(() => {
+    const id = this.viewingId();
+    return id === null ? null : (this.suggestions().find((s) => s.id === id) ?? null);
+  });
+  /** The text as it was decided, so with the edits of an edited approval. */
+  readonly viewingDraft = computed(() => {
+    const suggestion = this.viewing();
+    return suggestion ? this.draftOf(suggestion) : '';
+  });
+  readonly viewingItem = computed(() => this.queue().find((q) => q.id === this.viewingId()) ?? null);
+
   /** 0 → 1 while dragging towards the threshold */
   readonly progress = computed(() => (this.leaving() ? 1 : Math.min(Math.abs(this.dx()) / this.threshold(), 1)));
   readonly approveStrength = computed(() =>
@@ -99,6 +115,7 @@ export class TodayStore {
 
   readonly queue = computed<QueueItem[]>(() => {
     const decisions = new Map(this.decisions().map((d) => [d.id, d]));
+    const viewingId = this.viewingId();
     return this.suggestions().map((s, i) => {
       const d = decisions.get(s.id);
       let status: QueueStatus;
@@ -112,6 +129,8 @@ export class TodayStore {
         kindLabel: s.kindLabel,
         status,
         statusLabel: STATUS_LABEL[status],
+        decided: !!d,
+        shown: viewingId === null ? status === 'current' : s.id === viewingId,
       };
     });
   });
@@ -132,10 +151,36 @@ export class TodayStore {
     );
   }
 
+  /**
+   * Picks up tasks created meanwhile, e.g. from a mail that just arrived.
+   * They join the end of the stack, so nothing on screen moves.
+   */
+  refresh(): void {
+    if (this.loadState() !== 'ready') return;
+    const id = this.loadId;
+    this.enqueue(this.api.list(startOfToday())).then(
+      (tasks) => {
+        if (id !== this.loadId) return;
+        const known = new Set(this.suggestions().map((s) => s.id));
+        const added = tasks.filter((task) => task.status === 'open' && !known.has(task.id));
+        if (!added.length) return;
+        this.suggestions.update((list) => [...list, ...added.map((task) => toSuggestion(task))]);
+        // The undo of a decision just made is worth more than the news
+        if (this.toast()?.undoable) return;
+        this.showToast({
+          text: added.length === 1 ? `Neue Aufgabe · ${added[0].contactName}` : `${added.length} neue Aufgaben`,
+          verdict: 'approve',
+          undoable: false,
+        });
+      },
+      () => undefined,
+    );
+  }
+
   // ---- Gesture ----
 
   canDrag(): boolean {
-    return !this.editing() && !this.leaving() && !this.done();
+    return !this.editing() && !this.leaving() && !this.done() && !this.viewing();
   }
 
   beginDrag(): void {
@@ -169,7 +214,7 @@ export class TodayStore {
   }
 
   decide(verdict: Verdict): void {
-    if (this.leaving() || this.done()) return;
+    if (this.leaving() || this.done() || this.viewing()) return;
     const suggestion = this.current();
     const draft = this.draftOf(suggestion);
     const edited = verdict === 'approve' && draft !== suggestion.draft;
@@ -189,13 +234,14 @@ export class TodayStore {
       this.dx.set(0);
       this.showReason.set(false);
       this.snap();
-      this.showToast({ text: this.toastText(suggestion, verdict, edited), verdict, undoable: true });
+      // Opened a decided task while the card was leaving: no undo next to it
+      if (!this.viewing()) this.showToast({ text: this.toastText(suggestion, verdict, edited), verdict, undoable: true });
     }, LEAVE_MS);
   }
 
   undo(): void {
     const last = this.decisions().at(-1);
-    if (!last || this.leaving()) return;
+    if (!last || this.leaving() || this.viewing()) return;
     this.save(this.api.reopen(last.id));
     clearTimeout(this.toastTimer);
     this.decisions.update((list) => list.slice(0, -1));
@@ -213,10 +259,32 @@ export class TodayStore {
     this.load();
   }
 
+  // ---- Looking at a decided task ----
+
+  /**
+   * Opens a decided task to read; tasks without a decision are ignored.
+   * The undo offer of the last decision ends here, nothing next to the open
+   * task changes a decision.
+   */
+  view(id: string): void {
+    if (!this.decisions().some((d) => d.id === id)) return;
+    clearTimeout(this.toastTimer);
+    this.toast.set(null);
+    this.showReason.set(false);
+    this.viewingId.set(id);
+  }
+
+  /** Back to the stack, or to the summary once everything is decided. */
+  closeView(): void {
+    if (this.viewingId() === null) return;
+    this.showReason.set(false);
+    this.viewingId.set(null);
+  }
+
   // ---- Editing ----
 
   startEdit(): void {
-    if (this.leaving() || this.done()) return;
+    if (this.leaving() || this.done() || this.viewing()) return;
     this.draftBackup = this.currentDraft();
     this.showReason.set(false);
     this.editing.set(true);
@@ -252,6 +320,7 @@ export class TodayStore {
     this.index.set(0);
     this.decisions.set([]);
     this.drafts.set({});
+    this.viewingId.set(null);
     this.toast.set(null);
     this.dx.set(0);
     this.dragging.set(false);
