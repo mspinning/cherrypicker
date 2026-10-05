@@ -8,6 +8,26 @@ import { demoTasks } from './demo-tasks';
 import { TaskDto } from './dto/task.dto';
 import { Task, TaskStatus } from './entities/task.entity';
 
+/** What an agent proposes; status and decision start empty. */
+export type NewTask = Pick<
+  Task,
+  | 'kind'
+  | 'title'
+  | 'contactName'
+  | 'contactRole'
+  | 'companyName'
+  | 'dealValue'
+  | 'stage'
+  | 'lastContactAt'
+  | 'confidence'
+  | 'dueAt'
+  | 'subject'
+  | 'draft'
+  | 'summary'
+  | 'evidence'
+  | 'approvalNote'
+>;
+
 /** The tasks assigned to one sales person and what they decided about them. */
 @Injectable()
 export class TasksService implements OnApplicationBootstrap {
@@ -58,6 +78,11 @@ export class TasksService implements OnApplicationBootstrap {
       .addOrderBy('t.id', 'ASC')
       .getMany();
     return tasks.map((task) => TaskDto.from(task));
+  }
+
+  /** A new open task for one sales person, e.g. from a voice call. */
+  async create(assigneeId: string, task: NewTask): Promise<TaskDto> {
+    return TaskDto.from(await this.tasks.save(this.tasks.create({ ...task, assigneeId })));
   }
 
   /** `draft` is only kept if the assignee changed the proposed text. */

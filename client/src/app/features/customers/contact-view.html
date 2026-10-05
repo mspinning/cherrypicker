@@ -59,10 +59,12 @@
     }
 
     <dl class="facts">
-      <div>
-        <dt>E-Mail</dt>
-        <dd><a [href]="'mailto:' + k.email">{{ k.email }}</a></dd>
-      </div>
+      @if (k.email) {
+        <div>
+          <dt>E-Mail</dt>
+          <dd><a [href]="'mailto:' + k.email">{{ k.email }}</a></dd>
+        </div>
+      }
       @if (k.otherEmails.length) {
         <div>
           <dt>Weitere Adressen</dt>
@@ -102,6 +104,13 @@
         <dd>{{ ago(k.lastContactAt) }}</dd>
       </div>
     </dl>
+
+    @if (k.notes.length) {
+      <div class="block">
+        <h3 class="block__title">Notizen <span class="count">{{ k.notes.length }}</span></h3>
+        <app-note-list [notes]="k.notes" [showContact]="false" />
+      </div>
+    }
 
     <div class="block">
       <h3 class="block__title">Deine Mails</h3>

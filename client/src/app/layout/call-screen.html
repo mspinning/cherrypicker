@@ -1,0 +1,219 @@
+<div class="backdrop" aria-hidden="true"></div>
+
+<section #phone class="phone" role="dialog" aria-modal="true" aria-labelledby="call-title" tabindex="-1">
+  @switch (call.phase()) {
+    @case ('wrapping') {
+      <header class="top">
+        <span class="eyebrow">Anruf beendet</span>
+        <span class="timer">{{ time() }}</span>
+      </header>
+
+      <div class="after">
+        <span class="loader" aria-hidden="true"></span>
+        <h2 id="call-title" class="after__title">Cherry trägt <em>alles ein.</em></h2>
+        <ul class="steps" aria-live="polite">
+          @for (step of call.steps(); track $index) {
+            <li class="step" [class.is-done]="!$last">
+              @if ($last) {
+                <span class="step__dot" aria-hidden="true"></span>
+              } @else {
+                <app-icon name="check" [size]="15" />
+              }
+              <span>{{ step }}</span>
+            </li>
+          } @empty {
+            <li class="step"><span class="step__dot" aria-hidden="true"></span><span>Geht das Gespräch noch einmal durch</span></li>
+          }
+        </ul>
+      </div>
+
+      <footer class="bottom">
+        <p class="bottom__note">Das dauert einen Moment. Du musst nicht warten, die Aufgaben erscheinen unter „Heute“.</p>
+        <button type="button" class="pill pill--ghost" (click)="call.close()">Im Hintergrund fertigstellen</button>
+      </footer>
+    }
+
+    @case ('summary') {
+      <header class="top">
+        <span class="eyebrow">Anruf beendet</span>
+        <span class="timer">{{ time() }}</span>
+      </header>
+
+      <div class="after after--done">
+        <h2 id="call-title" class="after__title">Ist <em>notiert.</em></h2>
+        @if (call.error(); as message) {
+          <p class="alert" role="alert"><app-icon name="alert" [size]="18" /><span>{{ message }}</span></p>
+        }
+        @if (call.result(); as result) {
+          @if (result.summary) {
+            <p class="after__text">{{ result.summary }}</p>
+          } @else if (nothing() && !call.error()) {
+            <p class="after__text">Aus dem Anruf ist nichts entstanden.</p>
+          }
+
+          @if (result.tasks.length) {
+            <section class="group" aria-labelledby="call-tasks">
+              <h3 id="call-tasks" class="group__title">Neu unter „Heute“</h3>
+              <ul class="rows">
+                @for (task of result.tasks; track task.id) {
+                  <li class="row">
+                    <span class="row__icon"><app-icon [name]="task.kind" [size]="18" /></span>
+                    <span class="row__main">
+                      <span class="row__title">{{ task.title }}</span>
+                      <span class="row__sub">{{ due(task.dueAt) }}</span>
+                    </span>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          @if (result.customers.length) {
+            <section class="group" aria-labelledby="call-customers">
+              <h3 id="call-customers" class="group__title">Im CRM</h3>
+              <ul class="rows">
+                @for (customer of result.customers; track $index) {
+                  <li>
+                    <a class="row row--link" routerLink="/customers" [queryParams]="linkOf(customer)" (click)="call.close()">
+                      <span class="row__avatar" [style.background-color]="colorOf(customer)" aria-hidden="true">{{ initials(nameOf(customer)) }}</span>
+                      <span class="row__main">
+                        <span class="row__title">{{ nameOf(customer) }}</span>
+                        <span class="row__sub">{{ detail(customer) }}</span>
+                        @if (customer.note) {
+                          <span class="row__note"><app-icon name="note" [size]="13" />{{ customer.note }}</span>
+                        }
+                      </span>
+                      <app-icon name="arrow" [size]="16" class="row__go" />
+                    </a>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        }
+      </div>
+
+      <footer class="bottom bottom--row">
+        <button type="button" class="pill pill--ghost" (click)="call.close()">Schließen</button>
+        @if (call.result()?.tasks?.length) {
+          <button type="button" class="pill pill--primary" (click)="toToday()">Zu den Aufgaben</button>
+        }
+      </footer>
+    }
+
+    @case ('failed') {
+      <header class="top">
+        <span class="eyebrow">Anruf</span>
+      </header>
+      <div class="after">
+        <h2 id="call-title" class="after__title">Keine <em>Verbindung.</em></h2>
+        <p class="after__text">{{ call.error() }}</p>
+      </div>
+      <footer class="bottom">
+        <button type="button" class="pill pill--ghost" (click)="call.close()">Schließen</button>
+      </footer>
+    }
+
+    @default {
+      <header class="top">
+        <span class="eyebrow"><span class="live" aria-hidden="true"></span>Anruf</span>
+        <span class="timer" role="timer" aria-label="Dauer">{{ time() }}</span>
+      </header>
+
+      <div class="who">
+        <button
+          type="button"
+          class="orb"
+          [class.is-hearing]="call.hearing()"
+          [style.--level]="call.level()"
+          [attr.aria-label]="hint() || 'Cherry'"
+          (click)="call.tapOrb()"
+        >
+          <span class="orb__halo" aria-hidden="true"></span>
+          <span class="orb__ring" aria-hidden="true"></span>
+          <span class="orb__face" aria-hidden="true">
+            <svg viewBox="0 0 30 30" fill="none">
+              <path d="M9.5 19C10.5 12.5 14.5 7.5 21 4.5" stroke="#F4F1EA" stroke-width="1.6" stroke-linecap="round" />
+              <path d="M20.5 19.5C19.5 13 19.8 8.5 21 4.5" stroke="#F4F1EA" stroke-width="1.6" stroke-linecap="round" />
+              <path d="M21 4.5c3.2-.4 5.6.9 6.8 3.2-2.7 1-5.3.3-6.8-3.2z" fill="#C8F169" />
+              <circle cx="9" cy="22.5" r="5.8" fill="#FF7A55" />
+              <circle cx="20.8" cy="23" r="5.3" fill="#F4F1EA" />
+            </svg>
+          </span>
+        </button>
+        <h2 id="call-title" class="name">Cherry</h2>
+        <p class="status" aria-live="polite">{{ status() }}</p>
+        <p class="hint">{{ hint() }}</p>
+      </div>
+
+      <ol #captions class="captions" aria-label="Gespräch" aria-live="polite">
+        @for (line of call.lines(); track $index) {
+          <li class="line" [class.is-user]="line.who === 'user'">
+            <span class="line__who">{{ line.who === 'user' ? 'Du' : 'Cherry' }}</span>
+            <p class="line__text">{{ line.text }}</p>
+          </li>
+        }
+      </ol>
+
+      @if (call.micProblem(); as problem) {
+        <p class="notice"><app-icon name="mic-off" [size]="16" /><span>{{ problem }}</span></p>
+      }
+
+      @if (call.typing()) {
+        <form class="type" (submit)="send($event, field)">
+          <input
+            #field
+            class="type__field"
+            type="text"
+            enterkeyhint="send"
+            autocomplete="off"
+            placeholder="Schreib Cherry …"
+            aria-label="Nachricht an Cherry"
+            [disabled]="call.phase() === 'connecting' || call.phase() === 'thinking'"
+          />
+          <button type="submit" class="type__send" aria-label="Senden"><app-icon name="arrow" [size]="20" /></button>
+        </form>
+      }
+
+      <footer class="controls">
+        <div class="control">
+          <button
+            type="button"
+            class="key"
+            [class.is-on]="!call.micOn()"
+            [disabled]="!!call.micProblem()"
+            [attr.aria-pressed]="!call.micOn()"
+            aria-label="Mikrofon stumm"
+            (click)="call.toggleMic()"
+          >
+            <app-icon [name]="call.micOn() ? 'mic' : 'mic-off'" [size]="24" />
+          </button>
+          <span class="control__label" aria-hidden="true">Stumm</span>
+        </div>
+        <div class="control">
+          <button type="button" class="key" [class.is-on]="call.typing()" [attr.aria-pressed]="call.typing()" aria-label="Tippen statt sprechen" (click)="call.toggleTyping()">
+            <app-icon name="keyboard" [size]="24" />
+          </button>
+          <span class="control__label" aria-hidden="true">Tippen</span>
+        </div>
+        <div class="control">
+          <button
+            type="button"
+            class="key"
+            [class.is-on]="call.speakerOn() && call.canSpeak"
+            [disabled]="!call.canSpeak"
+            [attr.aria-pressed]="call.speakerOn()"
+            aria-label="Antworten vorlesen"
+            (click)="call.toggleSpeaker()"
+          >
+            <app-icon [name]="call.speakerOn() && call.canSpeak ? 'volume' : 'volume-off'" [size]="24" />
+          </button>
+          <span class="control__label" aria-hidden="true">Ton</span>
+        </div>
+        <button type="button" class="hangup" aria-label="Auflegen" (click)="call.hangUp()">
+          <app-icon name="hangup" [size]="30" [strokeWidth]="1.7" />
+        </button>
+      </footer>
+    }
+  }
+</section>

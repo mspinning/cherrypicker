@@ -38,7 +38,14 @@ export type IconName =
   | 'inbound'
   | 'outbound'
   | 'sparkle'
-  | 'linkedin';
+  | 'linkedin'
+  | 'mic'
+  | 'mic-off'
+  | 'volume'
+  | 'volume-off'
+  | 'keyboard'
+  | 'hangup'
+  | 'note';
 
 /** Inline stroke icons (24px grid, currentColor). */
 @Component({
@@ -201,6 +208,34 @@ export type IconName =
         @case ('linkedin') {
           <svg:rect x="3.5" y="3.5" width="17" height="17" rx="3.5" />
           <svg:path d="M8.2 10.8v5.7M8.2 7.9v.01M11.8 16.5v-5.7M11.8 13.4c0-1.6 1-2.7 2.4-2.7s2.4 1.1 2.4 2.7v3.1" />
+        }
+        @case ('mic') {
+          <svg:rect x="9" y="3" width="6" height="11.5" rx="3" />
+          <svg:path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+        }
+        @case ('mic-off') {
+          <svg:path d="M4 4l16 16" />
+          <svg:path d="M9 6.5V6a3 3 0 0 1 6 0v5.5c0 .4-.1.8-.2 1.1M12.9 14.3A3 3 0 0 1 9 11.5v-1" />
+          <svg:path d="M5.5 11.5a6.5 6.5 0 0 0 10.4 5.2M18.5 11.5c0 .9-.2 1.8-.5 2.6M12 18v3" />
+        }
+        @case ('volume') {
+          <svg:path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" />
+          <svg:path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11" />
+        }
+        @case ('volume-off') {
+          <svg:path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" />
+          <svg:path d="m16 9.5 5 5M21 9.5l-5 5" />
+        }
+        @case ('keyboard') {
+          <svg:rect x="2.5" y="6" width="19" height="12" rx="2.5" />
+          <svg:path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M6.5 14h.01M17 14h.01M9.5 14h5" />
+        }
+        @case ('hangup') {
+          <svg:path d="M3.2 13.6c-.5-1-.2-2.3.7-3 4.7-3.7 11.5-3.7 16.2 0 .9.7 1.2 2 .7 3l-.6 1.2c-.3.6-1 .9-1.6.7l-3-1c-.5-.2-.9-.7-.9-1.3v-1.4a9.5 9.5 0 0 0-5.4 0v1.4c0 .6-.4 1.1-.9 1.3l-3 1c-.6.2-1.3-.1-1.6-.7z" />
+        }
+        @case ('note') {
+          <svg:path d="M5 4.5h14v10l-5 5H5z" />
+          <svg:path d="M19 14.5h-5v5M8.5 9h7M8.5 12.5h4" />
         }
         @case ('users') {
           <svg:circle cx="9" cy="8.5" r="3.5" />

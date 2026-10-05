@@ -11,6 +11,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { MailImportModule } from './mail-import/mail-import.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module';
     CrmModule,
     MailImportModule,
     TasksModule,
+    VoiceModule,
   ],
   controllers: [HealthController],
 })

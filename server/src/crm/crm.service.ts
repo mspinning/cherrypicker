@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import {
   ActivityDto,
   CompanyDetailDto,
@@ -10,15 +10,18 @@ import {
   CrmSummaryDto,
   KnownByDto,
   ListCompaniesQueryDto,
+  NoteDto,
   ListContactsQueryDto,
   PageDto,
 } from './dto/crm.dto';
 import { CrmCompanyDomain } from './entities/crm-company-domain.entity';
 import { CrmCompany, CrmRelationship } from './entities/crm-company.entity';
 import { CrmContact } from './entities/crm-contact.entity';
+import { CrmNote } from './entities/crm-note.entity';
 import { CrmPartyDecision, PartyDecider } from './entities/crm-party-decision.entity';
 
 const ACTIVITY_LIMIT = 40;
+const NOTE_LIMIT = 40;
 
 /** Customers and their people, shared by all CRM users. */
 @Injectable()
@@ -97,8 +100,9 @@ export class CrmService {
     const company = await this.companies.findOne({ where: { id }, relations: { domains: true } });
     if (!company) throw new NotFoundException('Firma nicht gefunden');
 
-    const [contacts, activities, knownBy] = await Promise.all([
+    const [contacts, notes, activities, knownBy] = await Promise.all([
       this.contacts.find({ where: { companyId: id }, order: { fullName: 'ASC', id: 'ASC' } }),
+      this.notes('n.company_id = $1', id),
       this.activities('a.company_id = $1', [id, userId]),
       this.dataSource.query<{ user_id: string; first_name: string; last_name: string; email: string; mails: number; last_at: Date | null }[]>(
         `SELECT a.user_id, u.first_name, u.last_name, u.email, count(*)::int AS mails, max(a.occurred_at) AS last_at
@@ -131,6 +135,7 @@ export class CrmService {
       createdAt: company.createdAt,
       updatedAt: company.updatedAt,
       contacts: contacts.map((k) => contactItem(k, { id: company.id, name: company.name })),
+      notes,
       activities,
       knownBy: knownBy.map(
         (row): KnownByDto => ({
@@ -192,11 +197,12 @@ export class CrmService {
       source: contact.source,
       firstContactAt: contact.firstContactAt,
       createdAt: contact.createdAt,
+      notes: await this.notes('n.contact_id = $1', id),
       // Also mails the person was only cc'd on
       activities: await this.activities('(a.contact_id = $1 OR a.participants && $3::text[])', [
         id,
         userId,
-        [contact.email, ...contact.otherEmails],
+        addressesOf(contact),
       ]),
     };
   }
@@ -205,12 +211,14 @@ export class CrmService {
     await this.dataSource.transaction(async (m) => {
       const contact = await m.findOne(CrmContact, { where: { id } });
       if (!contact) throw new NotFoundException('Kontakt nicht gefunden');
+      // Notes on a private contact hang on nothing else
+      await m.delete(CrmNote, { contactId: id, companyId: IsNull() });
       await m.delete(CrmContact, id);
       // A business address comes back with its company; only private contacts can be ignored by address
       if (ignore && !contact.companyId) {
         await this.ignore(
           m,
-          [contact.email, ...contact.otherEmails].map((email) => `email:${email}`),
+          addressesOf(contact).map((email) => `email:${email}`),
           `${contact.fullName} wurde aus dem CRM gelöscht`,
         );
       }
@@ -252,6 +260,39 @@ export class CrmService {
     }));
   }
 
+  /** Newest notes of all users. */
+  private async notes(condition: string, id: string): Promise<NoteDto[]> {
+    const rows = await this.dataSource.query<
+      {
+        id: string;
+        title: string;
+        text: string;
+        occurred_at: Date;
+        author: string | null;
+        contact_id: string | null;
+        contact_name: string | null;
+      }[]
+    >(
+      `SELECT n.id, n.title, n.text, n.occurred_at, k.id AS contact_id, k.full_name AS contact_name,
+              COALESCE(NULLIF(trim(u.first_name || ' ' || u.last_name), ''), u.email) AS author
+       FROM crm_notes n
+       LEFT JOIN crm_contacts k ON k.id = n.contact_id
+       LEFT JOIN users u ON u.id = n.author_id
+       WHERE ${condition}
+       ORDER BY n.occurred_at DESC, n.created_at DESC
+       LIMIT ${NOTE_LIMIT}`,
+      [id],
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      text: r.text,
+      occurredAt: r.occurred_at,
+      author: r.author,
+      contact: r.contact_id ? { id: r.contact_id, fullName: r.contact_name ?? '' } : null,
+    }));
+  }
+
   private async ignore(m: EntityManager, keys: string[], reason: string): Promise<void> {
     if (!keys.length) return;
     await m.upsert(
@@ -275,6 +316,10 @@ function contactItem(k: CrmContact, company: { id: string; name: string } | null
     company: company && { id: company.id, name: company.name },
     lastContactAt: k.lastContactAt,
   };
+}
+
+function addressesOf(contact: CrmContact): string[] {
+  return [...(contact.email ? [contact.email] : []), ...contact.otherEmails];
 }
 
 function likePattern(q: string | undefined): string | null {

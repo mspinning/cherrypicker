@@ -12,7 +12,8 @@ import { CrmCompany, CrmSource } from './crm-company.entity';
 
 /**
  * A person at a customer. One row per person: the primary address is unique,
- * further addresses of the same person land in `otherEmails`.
+ * further addresses of the same person land in `otherEmails`. People met in
+ * person (voice call) may not have an address yet.
  */
 @Entity('crm_contacts')
 @Index(['companyId', 'normalizedName'])
@@ -34,7 +35,7 @@ export class CrmContact {
   @Column({ name: 'last_name', length: 100, default: '' })
   lastName: string;
 
-  /** Display name; falls back to the address */
+  /** Display name; the import falls back to the address */
   @Column({ name: 'full_name', length: 200 })
   fullName: string;
 
@@ -42,8 +43,8 @@ export class CrmContact {
   normalizedName: string;
 
   @Index({ unique: true })
-  @Column({ length: 320 })
-  email: string;
+  @Column({ type: 'varchar', length: 320, nullable: true })
+  email: string | null;
 
   @Column({ name: 'other_emails', type: 'text', array: true, default: () => "'{}'" })
   otherEmails: string[];

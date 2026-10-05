@@ -1,0 +1,6 @@
+# Speech-to-text for voice calls: Gemma 4 E4B hears audio natively.
+# The default context (128k) makes Ollama unload the agent model on every
+# turn; 8k (about five minutes of speech) lets both stay in memory.
+FROM gemma4:e4b
+PARAMETER num_ctx 8192
+PARAMETER temperature 0

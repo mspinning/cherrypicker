@@ -6,13 +6,14 @@ import { ContactDetail } from '../../core/crm/crm.models';
 import { Icon } from '../../shared/icon';
 import { errorMessage, formatAgo, formatDate } from '../../shared/format';
 import { ActivityList } from './activity-list';
+import { NoteList } from './note-list';
 import { initialsOfName, telOf } from './customers-format';
 
 /** One person at a customer, with the own mails exchanged with them. */
 @Component({
   selector: 'app-contact-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, RouterLink, ActivityList],
+  imports: [Icon, RouterLink, ActivityList, NoteList],
   templateUrl: './contact-view.html',
   styleUrl: './detail.scss',
 })

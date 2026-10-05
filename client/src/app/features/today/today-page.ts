@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { Viewport } from '../../core/viewport';
+import { CallStore } from '../../core/voice/call.store';
 import { ActionBar } from './components/action-bar';
 import { DecisionList } from './components/decision-list';
 import { DonePanel } from './components/done-panel';
@@ -21,8 +22,14 @@ export class TodayPage {
   protected readonly store = inject(TodayStore);
   protected readonly isDesktop = inject(Viewport).isDesktop;
 
+  private readonly call = inject(CallStore);
+
   constructor() {
-    this.store.load();
+    // Also again after every call that created tasks
+    effect(() => {
+      this.call.tasksCreated();
+      untracked(() => this.store.load());
+    });
   }
 
   /** Soft background glow that tints lime / coral while swiping. */
@@ -39,6 +46,7 @@ export class TodayPage {
 
   onKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement;
+    if (this.call.open()) return;
     if (this.store.editing()) {
       if (event.key === 'Escape') this.store.cancelEdit();
       return;

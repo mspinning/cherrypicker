@@ -125,11 +125,13 @@
                 <span class="avatar" [style.background-color]="colorOf(k.id)" aria-hidden="true">{{ initials(k.fullName) }}</span>
                 <span class="person__text">
                   <span class="person__name">{{ k.fullName }}</span>
-                  <span class="person__sub">{{ k.jobTitle || k.email }}</span>
+                  <span class="person__sub">{{ k.jobTitle || k.email || 'Ansprechpartner' }}</span>
                 </span>
               </a>
               <span class="person__actions">
-                <a class="icon-btn" [href]="'mailto:' + k.email" [attr.aria-label]="'Mail an ' + k.fullName"><app-icon name="mail" [size]="17" /></a>
+                @if (k.email) {
+                  <a class="icon-btn" [href]="'mailto:' + k.email" [attr.aria-label]="'Mail an ' + k.fullName"><app-icon name="mail" [size]="17" /></a>
+                }
                 @if (k.phone || k.mobile) {
                   <a class="icon-btn" [href]="'tel:' + tel(k.mobile || k.phone || '')" [attr.aria-label]="k.fullName + ' anrufen'">
                     <app-icon name="call" [size]="17" />
@@ -143,6 +145,13 @@
         <p class="muted">Noch keine Ansprechpartner.</p>
       }
     </div>
+
+    @if (c.notes.length) {
+      <div class="block">
+        <h3 class="block__title">Notizen <span class="count">{{ c.notes.length }}</span></h3>
+        <app-note-list [notes]="c.notes" />
+      </div>
+    }
 
     @if (c.knownBy.length) {
       <div class="block">

@@ -95,7 +95,9 @@
                   <span class="item__main">
                     <span class="item__name">{{ p.fullName }}</span>
                     <span class="item__sub">{{ joined([p.jobTitle, p.company?.name ?? 'Privat']) }}</span>
-                    <span class="item__meta">{{ p.email }}</span>
+                    @if (p.email) {
+                      <span class="item__meta">{{ p.email }}</span>
+                    }
                   </span>
                 </a>
               </li>

@@ -64,7 +64,8 @@ export class ContactListItemDto {
   fullName: string;
   firstName: string;
   lastName: string;
-  email: string;
+  /** null for people nobody has an address of yet */
+  email: string | null;
   jobTitle: string | null;
   phone: string | null;
   mobile: string | null;
@@ -79,6 +80,17 @@ export class ActivityDto {
   preview: string;
   occurredAt: Date;
   webLink: string | null;
+  contact: { id: string; fullName: string } | null;
+}
+
+/** What a CRM user reported about a conversation; visible to everybody. */
+export class NoteDto {
+  id: string;
+  title: string;
+  text: string;
+  occurredAt: Date;
+  /** null if the account no longer exists */
+  author: string | null;
   contact: { id: string; fullName: string } | null;
 }
 
@@ -111,6 +123,7 @@ export class CompanyDetailDto {
   createdAt: Date;
   updatedAt: Date;
   contacts: ContactListItemDto[];
+  notes: NoteDto[];
   /** Only mails of the requesting user's mailbox */
   activities: ActivityDto[];
   knownBy: KnownByDto[];
@@ -123,6 +136,7 @@ export class ContactDetailDto extends ContactListItemDto {
   source: CrmSource;
   firstContactAt: Date | null;
   createdAt: Date;
+  notes: NoteDto[];
   activities: ActivityDto[];
 }
 

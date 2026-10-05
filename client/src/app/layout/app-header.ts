@@ -4,6 +4,7 @@ import { AuthService } from '../core/auth/auth.service';
 import { initialsOf } from '../core/auth/user-display';
 import { LinkedInStore } from '../core/linkedin/linkedin.store';
 import { UserAdminService } from '../core/users/user-admin.service';
+import { CallStore } from '../core/voice/call.store';
 import { Icon } from '../shared/icon';
 import { LinkedInPanel } from './linkedin-panel';
 
@@ -41,6 +42,12 @@ import { LinkedInPanel } from './linkedin-panel';
         </a>
       </nav>
       <div class="actions">
+        @if (call.available()) {
+          <button type="button" class="round call" aria-label="Cherry anrufen: per Sprache von einem Kunden berichten" (click)="call.start()">
+            <app-icon name="call" [size]="19" />
+            <span class="call__word" aria-hidden="true">Cherry anrufen</span>
+          </button>
+        }
         <button
           #linkedInButton
           type="button"
@@ -90,6 +97,7 @@ export class AppHeader {
   protected readonly auth = inject(AuthService);
   private readonly userAdmin = inject(UserAdminService);
   protected readonly linkedIn = inject(LinkedInStore);
+  protected readonly call = inject(CallStore);
 
   private readonly linkedInButton = viewChild.required<ElementRef<HTMLButtonElement>>('linkedInButton');
   private readonly linkedInPanel = viewChild(LinkedInPanel, { read: ElementRef });

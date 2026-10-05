@@ -61,6 +61,12 @@ export interface AppConfig {
     /** Fills "Heute" with demo tasks for approved users who have none; for development and demos */
     seedDemo: boolean;
   };
+  voice: {
+    /** Chat model that hears audio and writes down what was said, e.g. "ollama/cherrypick-stt:latest"; empty disables voice calls */
+    sttModel: string;
+    /** Chat model with tool calling that leads the call and creates the tasks; LLM_MODEL if not set */
+    agentModel: string;
+  };
 }
 
 /** Read at import time by the chunk entity, which needs the vector size in its decorator. */
@@ -131,6 +137,10 @@ export default (): AppConfig => {
     },
     tasks: {
       seedDemo: process.env.SEED_DEMO_TASKS === 'true',
+    },
+    voice: {
+      sttModel: process.env.VOICE_STT_MODEL ?? '',
+      agentModel: process.env.VOICE_AGENT_MODEL || process.env.LLM_MODEL || '',
     },
   };
 };

@@ -54,6 +54,20 @@
   line-height: 1;
   letter-spacing: -0.01em;
 
+  // With the call button a phone has no room for the wordmark next to
+  // five buttons (admins), a small phone not even next to four
+  @media (max-width: 440px) {
+    .header:has(.call):has(.settings) & {
+      display: none;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .header:has(.call) & {
+      display: none;
+    }
+  }
+
   @include desktop {
     font-size: 30px;
   }
@@ -113,6 +127,38 @@
 
 .settings {
   color: var(--ink-soft);
+}
+
+// The one filled button up here: calling Cherry is what the app is for on the road
+.call {
+  gap: 9px;
+  border-color: var(--lime);
+  background-color: var(--lime);
+  font-size: 14.5px;
+  font-weight: 600;
+
+  &,
+  &:hover {
+    color: var(--paper-ink);
+  }
+
+  &:hover {
+    border-color: var(--lime-hover);
+    background-color: var(--lime-hover);
+  }
+
+  @include desktop {
+    width: auto;
+    padding: 0 18px 0 15px;
+  }
+}
+
+.call__word {
+  display: none;
+
+  @include desktop {
+    display: inline;
+  }
 }
 
 // Round "in" on small phones, the full "Linked[in]" wordmark wherever it fits

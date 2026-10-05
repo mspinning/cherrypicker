@@ -7,8 +7,8 @@ import { CrmContact } from './entities/crm-contact.entity';
 import { isRoleAddress, normalizeCompanyName, normalizePersonName, parseDisplayName } from './people';
 
 /** pg advisory lock key: merges run one after another, across workers and processes */
-const MERGE_LOCK = 7_310_101;
-const MAX_TOPICS = 10;
+export const MERGE_LOCK = 7_310_101;
+export const MAX_TOPICS = 10;
 const ACTIVITY_BATCH = 200;
 
 /** Everything the mailbox shows about one counterpart. */
@@ -291,7 +291,7 @@ export class CrmMergeService {
 }
 
 /** Models sometimes put the full name into first_name ("Julia Weber" + "Weber"). */
-function splitName(first: string, last: string): { firstName: string; lastName: string } {
+export function splitName(first: string, last: string): { firstName: string; lastName: string } {
   let firstName = first.trim();
   let lastName = last.trim();
   if (lastName && firstName.toLowerCase().endsWith(` ${lastName.toLowerCase()}`)) {
@@ -303,7 +303,10 @@ function splitName(first: string, last: string): { firstName: string; lastName: 
   return { firstName: firstName.slice(0, 100), lastName: lastName.slice(0, 100) };
 }
 
-function fillContact(contact: CrmContact, f: PartyFacts['contacts'][number] | undefined): boolean {
+export function fillContact(
+  contact: CrmContact,
+  f: Partial<Pick<CrmContact, 'jobTitle' | 'department' | 'phone' | 'mobile' | 'linkedinUrl'>> | undefined,
+): boolean {
   if (!f) return false;
   let changed = false;
   for (const key of ['jobTitle', 'department', 'phone', 'mobile', 'linkedinUrl'] as const) {
@@ -317,7 +320,7 @@ function fillContact(contact: CrmContact, f: PartyFacts['contacts'][number] | un
 }
 
 /** Widens first/last contact to cover the given range. */
-function spanDates(row: { firstContactAt: Date | null; lastContactAt: Date | null }, first: Date, last: Date): boolean {
+export function spanDates(row: { firstContactAt: Date | null; lastContactAt: Date | null }, first: Date, last: Date): boolean {
   let changed = false;
   if (!row.firstContactAt || first < row.firstContactAt) {
     row.firstContactAt = first;

@@ -191,11 +191,46 @@ Der regelmäßige Abgleich im Hintergrund für alle verbundenen Nutzer (neueste 
 
 Die Karten auf „Heute“ sind Zeilen der Tabelle `tasks`. Jede Aufgabe gehört genau einem Vertriebsmitarbeiter (`assignee_id` → `users`, wird mit dem Nutzer gelöscht). Jeder sieht und entscheidet nur seine eigenen, fremde Aufgaben beantwortet die API mit `404`.
 
+- **Herkunft:** Aufgaben entstehen aus Sprachanrufen (siehe „Sprachanruf mit Cherry“) und, solange es keine echten gibt, als Demo-Aufgaben.
 - **Inhalt:** Art (`mail`, `call`, `offer`, `meeting`), Titel, Kontakt und Deal als Momentaufnahme für die Karte (noch ohne Verknüpfung zu `crm_contacts`), Entwurf, Begründung mit gewichteten Belegen (`evidence`, JSONB), bester Zeitpunkt (`due_at`) und letzter Kontakt als Zeitstempel. Texte wie „vor 9 Tagen“ oder „Heute, 10:00 Uhr“ rechnet der Client daraus.
 - **Entscheidung:** `status` ist `open`, `approved` oder `rejected`, dazu `decided_at`. Wer den Entwurf vor der Freigabe ändert, dessen Text steht in `final_draft`, der Vorschlag in `draft` bleibt erhalten. „Rückgängig“ öffnet die Aufgabe wieder.
 - **Heute-Ansicht:** `GET /api/tasks?decidedSince=<Tagesbeginn>` liefert zuerst die seit Tagesbeginn entschiedenen Aufgaben in der Reihenfolge der Entscheidung, dann die offenen nach `due_at`. Die Entscheidungen überstehen so ein Neuladen, am nächsten Tag sind sie aus der Liste verschwunden.
 - **Demo-Aufgaben:** Mit `SEED_DEMO_TASKS=true` (Standard in `docker-compose.yml`) bekommt beim Serverstart jeder freigegebene Nutzer, der noch keine Aufgabe hat, sieben Demo-Aufgaben (`server/src/tasks/demo-tasks.ts`), signiert mit seinem Vornamen. Wer später freigegeben wird, bekommt sie beim nächsten Start. „Demo neu starten“ öffnet alle entschiedenen Aufgaben des Nutzers wieder, auch die früherer Tage.
-- Eine Freigabe löst noch nichts aus (kein Versand, kein Kalendereintrag). Die nächste Ausbaustufe schreibt echte Vorschläge in dieselbe Tabelle.
+- Eine Freigabe löst noch nichts aus (kein Versand, kein Kalendereintrag). Die nächste Ausbaustufe schreibt auch Vorschläge aus dem Postfach in dieselbe Tabelle.
+
+## Sprachanruf mit Cherry
+
+Über den Knopf „Cherry anrufen“ im Header berichtet man der Assistentin per Sprache von einem Kundenkontakt („Habe Thomas Becker von Nordwerk auf der Hannover Messe getroffen, er will mehr Infos zu HUB.KI, bis Freitag ein Angebot“) oder lässt einen neuen Kunden anlegen. Das sieht aus wie ein Telefonat: auf dem Handy bildschirmfüllend, am Desktop als Karte in Handygröße. Der Knopf erscheint nur, wenn `VOICE_STT_MODEL` gesetzt ist.
+
+### Ablauf
+
+1. **Sprechen:** Der Browser nimmt über das Mikrofon auf und erkennt selbst, wann jemand spricht und wann er fertig ist (Lautstärke gegen das Grundrauschen, 1,3 Sekunden Pause beenden einen Beitrag; ein Tipp auf Cherry beendet ihn sofort). Jeder Beitrag geht als WAV (16 kHz, mono) an `POST /api/voice/calls/:id/turns`. Gespeichert wird nur der Text, nie die Aufnahme.
+2. **Verstehen:** Der Server lässt die Aufnahme von einem Modell transkribieren, das Audio versteht (`VOICE_STT_MODEL`). Als Schreibhilfe bekommt es die Namen der eigenen Firmen, die Produktnamen aus den Titeln der Wissensquellen und die Kunden, die im Anruf schon gefunden wurden.
+3. **Antworten:** Der Agent (`VOICE_AGENT_MODEL`, sonst `LLM_MODEL`) schaut im CRM nach, ob es Firma und Person schon gibt (`kunden_suchen`, findet per `pg_trgm` auch „Kessler“ für „Kässler & Söhne GmbH“), kann die Wissensbasis befragen (`wissen_suchen`) und antwortet in ein bis zwei Sätzen. Die Antwort liest der Browser mit der Stimme des Geräts vor (Web Speech API). Während des Anrufs wird nichts gespeichert, Korrekturen („nein, Bäcker mit ä“) kosten also nichts.
+4. **Auflegen:** Mit dem roten Knopf, oder Cherry legt auf, wenn man sich verabschiedet. Erst jetzt schreibt der Agent: `kunde_speichern` legt Firma und Ansprechpartner an oder ergänzt sie (vorhandene Angaben werden nie überschrieben) und hängt eine Notiz zum Gespräch an, `aufgabe_anlegen` erzeugt je nächstem Schritt eine Aufgabe mit fertigem Entwurf für den Anrufer. Die Aufgaben erscheinen unter „Heute“ und werden dort wie alle anderen freigegeben oder verworfen. Der Bildschirm zeigt die Schritte live und danach, was entstanden ist. Wer nicht warten will, lässt es im Hintergrund fertig werden. Auch ein geschlossener Tab zählt als Auflegen.
+
+Antworten auf Beiträge und das Aufräumen nach dem Anruf kommen als Event-Stream (`text/event-stream`, je Ereignis eine Zeile `data: {…}`): `heard` (verstandener Text), `step` (was der Agent gerade tut), `reply` (Antwort, `hangup: true` beim Abschied), `silence`, `result`, `error`.
+
+- **Ohne Mikrofon** (Zugriff verweigert, oder die Seite läuft nicht über HTTPS bzw. `localhost`) kann man im Anruf tippen. **Auf dem Handy braucht das Mikrofon HTTPS**, also `SITE_ADDRESS` mit einer Domain.
+- **Fälligkeiten** rechnet der Server aus, nicht das Modell: Das Modell nennt nur „donnerstag“ und „naechste“, daraus wird das Datum in der Zeitzone des Geräts. Samstag und Sonntag rutschen auf den Freitag davor, ohne genannten Tag gilt die nächste volle Stunde in der Bürozeit.
+- **Notizen** (`crm_notes`) sehen alle CRM-Nutzer an Firma und Kontakt, anders als die Mails aus dem eigenen Postfach. Kontakte aus einem Anruf dürfen ohne Mailadresse angelegt werden. Ist eine genannt, wird ihre Domain der Firma zugeordnet, damit der Mail-Import sie später wiederfindet.
+- **Protokoll:** `voice_calls` hält je Anruf den Wortlaut (`turns`), den Verlauf des Agenten samt Werkzeugaufrufen (`messages`) und das Ergebnis.
+
+### Modelle über Ollama
+
+Alle Modelle laufen lokal über Ollama und werden wie bisher über Bifrost angesprochen. `docker/ollama/setup.sh` lädt sie und startet Bifrost neu, damit es die neue Modellliste kennt:
+
+| Zweck | Modell in Ollama | `.env` |
+|-------|------------------|--------|
+| Embeddings der Wissensbasis | `bge-m3` | `EMBEDDING_MODEL=ollama/bge-m3:latest` |
+| Mail-Import und Anruf-Agent | `qwen3.8` | `LLM_MODEL=ollama/qwen3.8:latest` |
+| Spracherkennung | `cherrypick-stt` (Gemma 4 E4B) | `VOICE_STT_MODEL=ollama/cherrypick-stt:latest` |
+
+- **Spracherkennung ohne Whisper:** Ollama kann Audio nur über Modelle, die selbst hören, etwa Gemma 4 E4B. Bifrosts eigener Endpunkt `/v1/audio/transcriptions` erreicht Ollama nicht („not supported by ollama provider“), deshalb schickt der Server die Aufnahme als Audio-Teil einer normalen Chat-Anfrage. 15 Sekunden Sprache sind so in unter einer Sekunde Text.
+- **`cherrypick-stt` ist Gemma 4 E4B mit kleinem Kontext** (`docker/ollama/cherrypick-stt.Modelfile`). Mit dem Standardkontext von 128k entlädt Ollama bei jedem Wechsel zwischen Spracherkennung und Agent das jeweils andere Modell, was jede Antwort um sechs bis zehn Sekunden verzögert. Mit 8k bleiben beide geladen.
+- **Sprachausgabe** gibt es in Ollama nicht. Cherry spricht mit der Stimme des Geräts, ohne Modell und ohne Server. Bevorzugt werden Stimmen, die auf dem Gerät selbst laufen.
+- **Tempo** auf einem M5 Max: Eine Antwort im Gespräch kommt nach ein bis sieben Sekunden (am längsten, wenn der Agent im CRM und in der Wissensbasis nachschaut), das Aufräumen danach braucht etwa 15 Sekunden je Aufgabe. Der Agent läuft ohne „Thinking“ (`reasoning_effort: none`), mit dauerte das Aufräumen doppelt so lang.
+- Für ein gehostetes Modell genügt es, `VOICE_AGENT_MODEL` bzw. `VOICE_STT_MODEL` umzustellen. Das Modell für die Spracherkennung muss Audio in Chat-Anfragen annehmen (`input_audio`).
 
 ## LinkedIn-Nachrichten (Chrome-Erweiterung)
 
@@ -275,6 +310,10 @@ CRM-Seite ◄─ Fortschritt und Ergebnis ─┘   danach zurück zum CRM-Tab
 | POST    | `/api/tasks/:id/reject`                    | Bearer | –                                      |
 | POST    | `/api/tasks/:id/reopen`                    | Bearer | – (Entscheidung zurücknehmen)          |
 | POST    | `/api/tasks/reopen`                        | Bearer | – (alle eigenen Entscheidungen zurücknehmen) |
+| GET     | `/api/voice`                               | Bearer | – (sind Anrufe eingerichtet?)          |
+| POST    | `/api/voice/calls`                         | Bearer | `timeZone` (IANA, vom Gerät); liefert `id` und Begrüßung |
+| POST    | `/api/voice/calls/:id/turns`               | Bearer | multipart: `audio` (WAV, 16 Bit PCM) oder JSON: `text`; Antwort als Event-Stream |
+| POST    | `/api/voice/calls/:id/finish`              | Bearer | – (auflegen; Event-Stream mit Schritten und Ergebnis) |
 | GET     | `/api/health`        | –      | –                                          |
 
 ```bash
@@ -290,7 +329,7 @@ curl localhost:3000/api/users/me -H "Authorization: Bearer <accessToken>"
 ## Hinweise
 
 - **Realm-Import:** `docker/keycloak/crm-realm.json` wird nur importiert, wenn der Realm noch nicht existiert. Änderungen an der Datei greifen erst nach `docker compose down -v`. Dieser Befehl löscht alle Daten.
-- **Postgres-Init:** `docker/postgres/init.sh` läuft nur bei leerem Volume. Das Skript legt die Extensions `vector` und `pgcrypto` sowie die Keycloak-Datenbank an.
+- **Postgres-Init:** `docker/postgres/init.sh` läuft nur bei leerem Volume. Das Skript legt die Extensions `vector`, `pgcrypto` und `pg_trgm` sowie die Keycloak-Datenbank an. `pg_trgm` holt der Server bei bestehenden Datenbanken beim Start selbst nach.
 - **`DB_SYNCHRONIZE=true`** erzeugt die Tabellen aus den Entities. Das ist nur für die Entwicklung gedacht. Vor Produktion auf TypeORM-Migrations umstellen.
 - **Keycloak läuft im `start-dev`-Modus** (HTTP, kein Caching der Themes). Für Produktion `start` mit TLS und `KC_HOSTNAME` verwenden.
 - **Direct Access Grant** (Passwort über das Backend) ist für ein API-first-Setup pragmatisch, gilt nach OAuth 2.1 aber als Legacy. Sobald ein Web-Frontend dazukommt, empfiehlt sich der Authorization Code Flow mit PKCE über einen eigenen Public Client.

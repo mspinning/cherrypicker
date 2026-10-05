@@ -17,7 +17,8 @@ export interface ContactListItem {
   fullName: string;
   firstName: string;
   lastName: string;
-  email: string;
+  /** null for people nobody has an address of yet */
+  email: string | null;
   jobTitle: string | null;
   phone: string | null;
   mobile: string | null;
@@ -32,6 +33,17 @@ export interface Activity {
   preview: string;
   occurredAt: string;
   webLink: string | null;
+  contact: { id: string; fullName: string } | null;
+}
+
+/** What a CRM user reported about a conversation, e.g. in a call with the assistant; everybody sees it */
+export interface Note {
+  id: string;
+  title: string;
+  text: string;
+  occurredAt: string;
+  /** null if the account no longer exists */
+  author: string | null;
   contact: { id: string; fullName: string } | null;
 }
 
@@ -64,6 +76,7 @@ export interface CompanyDetail {
   createdAt: string;
   updatedAt: string;
   contacts: ContactListItem[];
+  notes: Note[];
   /** Only mails of the own mailbox */
   activities: Activity[];
   knownBy: KnownBy[];
@@ -76,6 +89,7 @@ export interface ContactDetail extends ContactListItem {
   source: 'mail_import' | 'manual';
   firstContactAt: string | null;
   createdAt: string;
+  notes: Note[];
   activities: Activity[];
 }
 
