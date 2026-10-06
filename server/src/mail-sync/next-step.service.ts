@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CrmRelationship } from '../crm/entities/crm-company.entity';
 import { LlmService, ToolSpec } from '../llm/llm.service';
-import { clamp, multiline, text } from '../llm/tool-args';
+import { clamp, multiline, plain, text } from '../llm/tool-args';
 import { TaskKind } from '../tasks/entities/task.entity';
 import { describeNow } from '../voice/local-time';
 
@@ -246,14 +246,6 @@ function sanitize(raw: Record<string, unknown>, input: StepInput): StepAssessmen
     },
     reason,
   };
-}
-
-/** The card shows the draft as it is: markdown marks would stand there as asterisks. */
-function plain(value: string | undefined): string | undefined {
-  return value
-    ?.replace(/(\*\*|__)(.+?)\1/g, '$2')
-    .replace(/^#{1,6}\s+/gm, '')
-    .trim();
 }
 
 function replySubject(subject: string): string {

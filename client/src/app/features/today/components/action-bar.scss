@@ -36,6 +36,14 @@
   }
 }
 
+// Waiting for the AI: nothing to press
+.round:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
 // ---- Decide ----
 
 .actions {

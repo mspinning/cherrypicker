@@ -3,16 +3,41 @@
 :host {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
+  min-height: 0;
   color: var(--ink);
 }
 
 :host(.compact) {
-  gap: 14px;
-  overflow: auto;
+  gap: 12px;
   padding: 15px 16px;
   border-radius: 16px;
   background-color: var(--paper-ink);
+}
+
+// The reasoning scrolls; the line to the AI below it stays in reach
+.scroll {
+  flex-grow: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+
+  :host(.compact) & {
+    gap: 14px;
+  }
+}
+
+.hint {
+  flex-shrink: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--surface-border);
+
+  :host(.compact) & {
+    padding-top: 12px;
+    border-top-color: #2e2e28;
+  }
 }
 
 .eyebrow {

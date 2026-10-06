@@ -348,6 +348,24 @@
   }
 }
 
+// With the AI: the text on screen is about to be replaced
+.draft.is-revising {
+  .draft__subject,
+  .draft__body {
+    animation: revising 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes revising {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
 .draft__head {
   display: flex;
   align-items: center;

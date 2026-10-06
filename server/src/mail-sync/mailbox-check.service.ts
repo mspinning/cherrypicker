@@ -59,6 +59,8 @@ export interface CheckResult {
   checked: number;
   customers: number;
   tasks: number;
+  /** Mails passed over because nobody outside the group was on them */
+  ignored: number;
 }
 
 /** The user switched the sync off or disconnected the mailbox while a check ran. */
@@ -129,27 +131,35 @@ export class MailboxCheck {
   async run(userId: string, checkedUntil: Date, now = new Date()): Promise<CheckResult> {
     const since = new Date(Math.max(checkedUntil.getTime() - OVERLAP_MS, now.getTime() - MAX_CATCH_UP_MS));
     const [scan, skipFolders] = await Promise.all([this.mailbox.scan(userId), this.graph.folderIds(userId, SKIP_FOLDERS)]);
+    await this.states.update({ userId }, { internalDomains: [...scan.internalDomains].sort() });
 
     const aggregator = new MailAggregator(scan);
     const raw = new Map<string, GraphMessage>();
+    let ignored = 0;
     for await (const page of this.graph.messages(userId, { since, pageSize: PAGE_SIZE })) {
       for (const message of page) {
         if (message.isDraft || (message.parentFolderId && skipFolders.has(message.parentFolderId))) continue;
-        // Mails among colleagues and from machines involve nobody outside: they are dropped here
+        // Mails of the owner, among colleagues and from machines involve nobody outside: they are dropped here
         if (aggregator.add(message)) raw.set(message.id, message);
+        // Counted once: the last minutes before `checkedUntil` were already counted by the check before
+        else if (Date.parse(message.receivedDateTime ?? '') >= checkedUntil.getTime()) ignored++;
       }
     }
 
-    const run: Run = { userId, now, scan, raw, result: { checked: 0, customers: 0, tasks: 0 } };
-    if (!raw.size) return run.result;
-
-    const seen = await this.seen(userId, [...raw.keys()]);
-    for (const group of aggregator.result()) {
-      // A mail with several counterparts is decided once, with the one it came from (or went to first)
-      const own = group.messages.filter((m) => !seen.has(m.id) && ownerOf(m, scan) === group.key);
-      if (!own.length) continue;
-      await this.ensureWanted(userId);
-      await this.handleGroup(run, group, own);
+    const run: Run = { userId, now, scan, raw, result: { checked: 0, customers: 0, tasks: 0, ignored } };
+    if (raw.size) {
+      const seen = await this.seen(userId, [...raw.keys()]);
+      for (const group of aggregator.result()) {
+        // A mail with several counterparts is decided once, with the one it came from (or went to first)
+        const own = group.messages.filter((m) => !seen.has(m.id) && ownerOf(m, scan) === group.key);
+        if (!own.length) continue;
+        await this.ensureWanted(userId);
+        await this.handleGroup(run, group, own);
+      }
+    }
+    // Only a check that got through moves `checkedUntil`, so only then the count stays free of repeats
+    if (ignored) {
+      await this.dataSource.query('UPDATE mail_sync_states SET messages_ignored = messages_ignored + $2 WHERE user_id = $1', [userId, ignored]);
     }
     return run.result;
   }

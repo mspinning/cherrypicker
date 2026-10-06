@@ -23,6 +23,7 @@
       <app-suggestion-stack [compact]="!isDesktop()" />
       <app-action-bar
         [editing]="store.editing()"
+        [busy]="store.revising()"
         [compact]="!isDesktop()"
         (approve)="store.approve()"
         (reject)="store.reject()"
@@ -42,7 +43,7 @@
           <div class="aside__eyebrow">Heute entschieden</div>
           <app-decision-list />
         } @else {
-          <app-reason-panel class="aside__reason" [suggestion]="store.current()" />
+          <app-reason-panel class="aside__reason" [suggestion]="store.current()" [revisable]="true" />
         }
       }
     </aside>

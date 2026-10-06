@@ -20,6 +20,10 @@ export class MailSyncStateDto {
   /** Why the last check stopped early */
   lastError: string | null;
   messagesChecked: number;
+  /** Passed over: from the owner's own addresses, from colleagues or from automated senders */
+  messagesIgnored: number;
+  /** Mail domains that count as colleagues */
+  internalDomains: string[];
   customersCreated: number;
   tasksCreated: number;
 
@@ -31,6 +35,8 @@ export class MailSyncStateDto {
       nextSyncAt: state.enabled ? state.nextSyncAt : null,
       lastError: state.lastError,
       messagesChecked: state.messagesChecked,
+      messagesIgnored: state.messagesIgnored,
+      internalDomains: state.internalDomains,
       customersCreated: state.customersCreated,
       tasksCreated: state.tasksCreated,
     };

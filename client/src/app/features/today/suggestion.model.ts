@@ -61,7 +61,7 @@ export interface QueueItem {
   kindLabel: string;
   status: QueueStatus;
   statusLabel: string;
-  /** Can be opened again to read */
+  /** Opens to read only; one without a decision opens on top of the stack */
   decided: boolean;
   /** Its card is the one on screen */
   shown: boolean;

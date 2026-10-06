@@ -20,19 +20,19 @@ import { Icon } from '../../../shared/icon';
     } @else {
       <div class="actions">
         <div class="action">
-          <button type="button" class="round round--reject" aria-label="Verwerfen" aria-keyshortcuts="ArrowLeft" (click)="reject.emit()">
+          <button type="button" class="round round--reject" aria-label="Verwerfen" aria-keyshortcuts="ArrowLeft" [disabled]="busy()" (click)="reject.emit()">
             <app-icon name="close" [size]="compact() ? 26 : 28" [strokeWidth]="2" />
           </button>
           <span class="action__label" aria-hidden="true">Verwerfen</span>
         </div>
         <div class="action action--minor">
-          <button type="button" class="round round--edit" aria-label="Bearbeiten" (click)="edit.emit()">
+          <button type="button" class="round round--edit" aria-label="Bearbeiten" [disabled]="busy()" (click)="edit.emit()">
             <app-icon name="edit" [size]="compact() ? 19 : 20" />
           </button>
           <span class="action__label" aria-hidden="true">Bearbeiten</span>
         </div>
         <div class="action">
-          <button type="button" class="round round--approve" aria-label="Freigeben" aria-keyshortcuts="ArrowRight" (click)="approve.emit()">
+          <button type="button" class="round round--approve" aria-label="Freigeben" aria-keyshortcuts="ArrowRight" [disabled]="busy()" (click)="approve.emit()">
             <app-icon name="check" [size]="compact() ? 28 : 30" [strokeWidth]="2.2" />
           </button>
           <span class="action__label" aria-hidden="true">Freigeben</span>
@@ -45,6 +45,8 @@ import { Icon } from '../../../shared/icon';
 export class ActionBar {
   readonly editing = input(false);
   readonly compact = input(false);
+  /** The task is with the AI and cannot be decided right now */
+  readonly busy = input(false);
 
   readonly approve = output<void>();
   readonly reject = output<void>();

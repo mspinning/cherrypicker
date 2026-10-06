@@ -3,7 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
-import { ApproveTaskDto, ListTasksQueryDto, TaskDto } from './dto/task.dto';
+import { ApproveTaskDto, ListTasksQueryDto, ReviseTaskDto, TaskDto, TaskRevisionDto } from './dto/task.dto';
+import { TaskRevisionService } from './task-revision.service';
 import { TasksService } from './tasks.service';
 
 /** The signed-in user's own tasks, the cards on "Heute". */
@@ -13,6 +14,7 @@ import { TasksService } from './tasks.service';
 export class TasksController {
   constructor(
     private readonly tasks: TasksService,
+    private readonly revisions: TaskRevisionService,
     private readonly users: UsersService,
   ) {}
 
@@ -40,6 +42,18 @@ export class TasksController {
   ): Promise<TaskDto> {
     const user = await this.users.requireByKeycloakId(claims.sub);
     return this.tasks.approve(user.id, id, dto.draft);
+  }
+
+  /** Reworks an open task with a hint of its assignee; what the hint says about the customer goes into the CRM. */
+  @Post(':id/revise')
+  @HttpCode(HttpStatus.OK)
+  async revise(
+    @CurrentUser() claims: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviseTaskDto,
+  ): Promise<TaskRevisionDto> {
+    const user = await this.users.requireByKeycloakId(claims.sub);
+    return this.revisions.revise(user, id, dto.hint);
   }
 
   @Post(':id/reject')

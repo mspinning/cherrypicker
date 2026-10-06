@@ -46,6 +46,14 @@ export class MailSyncState {
   @Column({ name: 'messages_checked', type: 'int', default: 0 })
   messagesChecked: number;
 
+  /** Mails nobody outside the group was on: from the owner, from colleagues or from machines */
+  @Column({ name: 'messages_ignored', type: 'int', default: 0 })
+  messagesIgnored: number;
+
+  /** What counted as the own group at the last check, for the profile to explain what is passed over */
+  @Column({ name: 'internal_domains', type: 'text', array: true, default: () => "'{}'" })
+  internalDomains: string[];
+
   @Column({ name: 'customers_created', type: 'int', default: 0 })
   customersCreated: number;
 

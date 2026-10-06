@@ -29,6 +29,8 @@ import { SuggestionCard } from './suggestion-card';
       [editing]="store.editing()"
       [showReason]="store.showReason()"
       [compact]="compact()"
+      [revisable]="true"
+      [revising]="store.revising()"
       [approveStamp]="store.approveStrength()"
       [rejectStamp]="store.rejectStrength()"
       [style.transform]="cardTransform()"

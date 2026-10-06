@@ -1,4 +1,5 @@
-import { IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsISO8601, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Identified } from '../../crm/crm-lookup.service';
 import { Task, TaskEvidence, TaskKind, TaskStatus } from '../entities/task.entity';
 
@@ -15,6 +16,15 @@ export class ApproveTaskDto {
   @IsString()
   @MaxLength(20_000)
   draft?: string;
+}
+
+export class ReviseTaskDto {
+  /** What the assignee tells the AI about the proposal, e.g. "Produkt XY passt besser" */
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  hint: string;
 }
 
 export class TaskDto {
@@ -69,4 +79,11 @@ export class TaskDto {
       decidedAt: task.decidedAt,
     };
   }
+}
+
+export class TaskRevisionDto {
+  /** The task as it is proposed now */
+  task: TaskDto;
+  /** Title of the note the hint left on the customer in the CRM; null if nothing of it belonged there */
+  crmNote: string | null;
 }

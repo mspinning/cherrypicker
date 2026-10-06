@@ -11,6 +11,10 @@ export interface MailSyncState {
   /** Why the last check stopped early */
   lastError: string | null;
   messagesChecked: number;
+  /** Passed over: from own addresses, from colleagues or from automated senders */
+  messagesIgnored: number;
+  /** Mail domains that count as colleagues */
+  internalDomains: string[];
   customersCreated: number;
   tasksCreated: number;
 }

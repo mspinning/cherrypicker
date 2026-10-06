@@ -2,7 +2,10 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { QueueItem } from '../suggestion.model';
 import { TodayStore } from '../today.store';
 
-/** Desktop sidebar: today's suggestions in order with their status; a decided one opens again on click, to read. */
+/**
+ * Desktop sidebar: today's suggestions in order with their status. Each one opens on click:
+ * an open task comes to the top of the stack, a decided one is shown to read.
+ */
 @Component({
   selector: 'app-queue-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,9 +23,8 @@ import { TodayStore } from '../today.store';
             class="row"
             [class.is-shown]="q.shown"
             [class.is-waiting]="q.status === 'waiting'"
-            [disabled]="q.status === 'waiting'"
             [attr.aria-pressed]="q.decided ? q.shown : null"
-            [attr.title]="q.decided ? 'Ansehen' : null"
+            [attr.title]="q.decided ? 'Ansehen' : q.status === 'waiting' ? 'Öffnen' : null"
             (click)="open(q)"
           >
             <span class="row__pos">{{ q.position }}</span>
@@ -49,9 +51,9 @@ import { TodayStore } from '../today.store';
 export class QueueList {
   protected readonly store = inject(TodayStore);
 
-  /** A decided task opens to read; the current one brings the stack back. */
+  /** A decided task opens to read; an open one becomes the card on top of the stack. */
   protected open(item: QueueItem): void {
     if (item.decided) this.store.view(item.id);
-    else this.store.closeView();
+    else this.store.pick(item.id);
   }
 }

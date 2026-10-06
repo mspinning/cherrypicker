@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../auth/auth.service';
-import { Task } from './task.models';
+import { Task, TaskRevision } from './task.models';
 
 const BASE = `${API_URL}/tasks`;
 
@@ -19,6 +19,11 @@ export class TasksApi {
   /** `draft`: the edited text, left out if the proposal was approved as it is */
   approve(id: string, draft?: string): Observable<Task> {
     return this.http.post<Task>(`${BASE}/${id}/approve`, draft === undefined ? {} : { draft });
+  }
+
+  /** Lets the AI rework an open task with `hint`; takes as long as the model needs for a new draft */
+  revise(id: string, hint: string): Observable<TaskRevision> {
+    return this.http.post<TaskRevision>(`${BASE}/${id}/revise`, { hint });
   }
 
   reject(id: string): Observable<Task> {

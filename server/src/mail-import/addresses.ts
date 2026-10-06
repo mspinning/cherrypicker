@@ -4,8 +4,12 @@
  * and services everybody uses but nobody sells to.
  */
 
-/** Second-level registries where a company domain has three labels (acme.co.uk) */
+/**
+ * Second-level registries where a company domain has three labels (acme.co.uk),
+ * and Microsoft's tenant domains, where every customer has its own (acme.onmicrosoft.com)
+ */
 const MULTI_PART_SUFFIXES = new Set([
+  'onmicrosoft.com',
   'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'ltd.uk', 'plc.uk', 'me.uk',
   'co.at', 'or.at', 'ac.at', 'gv.at',
   'com.au', 'net.au', 'org.au', 'co.nz', 'co.za', 'co.jp', 'co.kr', 'co.in', 'com.br', 'com.mx', 'com.ar', 'com.tr',

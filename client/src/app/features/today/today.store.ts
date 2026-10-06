@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
@@ -28,8 +29,10 @@ export type LoadState = 'loading' | 'ready' | 'failed';
 /**
  * State of the "Heute" screen: the signed-in user's tasks as a card stack,
  * the swipe gesture, draft editing and today's decisions. Decisions show
- * right away and are saved on the server in the background. A decided task
- * can be opened again from the lists, to read only.
+ * right away and are saved on the server in the background. Every task opens
+ * from the list: an open one comes to the top of the stack, a decided one is
+ * shown to read only. An open task can be sent back to the AI with a hint,
+ * which reworks it.
  */
 @Injectable({ providedIn: 'root' })
 export class TodayStore {
@@ -38,9 +41,13 @@ export class TodayStore {
   private readonly viewport = inject(Viewport);
 
   readonly loadState = signal<LoadState>('loading');
-  /** Today's decided tasks first, in the order they were decided, then the open ones. */
+  /**
+   * As loaded: today's decided tasks first, in the order they were decided, then the open ones.
+   * A task decided here keeps its place.
+   */
   readonly suggestions = signal<Suggestion[]>([]);
-  readonly index = signal(0);
+  /** The open task on top of the stack; null or decided meanwhile: the first open one, see `current` */
+  private readonly currentId = signal<string | null>(null);
   readonly decisions = signal<Decision[]>([]);
   readonly toast = signal<Toast | null>(null);
 
@@ -52,13 +59,23 @@ export class TodayStore {
   readonly snapping = signal(false);
 
   // Editing / mobile "why" panel
-  readonly editing = signal(false);
   readonly showReason = signal(false);
   private readonly drafts = signal<Record<string, string>>({});
+  /** The open tasks whose draft is being edited, each with the text to go back to on cancel */
+  private readonly editBackups = signal<Record<string, string>>({});
+
+  // Hints to the AI
+  /** What the user is telling the AI about a task; kept until the reworked task is there */
+  private readonly hints = signal<Record<string, string>>({});
+  /** Why the last hint on a task did not get through */
+  private readonly hintErrors = signal<Record<string, string>>({});
+  /** The tasks the AI is reworking right now */
+  private readonly revisingIds = signal<ReadonlySet<string>>(new Set());
 
   /** The decided task that is open to read, see `view` */
   private readonly viewingId = signal<string | null>(null);
-  private draftBackup = '';
+  /** The task that follows the card flying out */
+  private afterLeave: string | null = null;
 
   private leaveTimer?: ReturnType<typeof setTimeout>;
   private snapTimer?: ReturnType<typeof setTimeout>;
@@ -80,11 +97,32 @@ export class TodayStore {
   readonly flyDistance = computed(() => (this.viewport.isDesktop() ? FLY_DISTANCE.desktop : FLY_DISTANCE.mobile));
 
   readonly total = computed(() => this.suggestions().length);
-  readonly done = computed(() => this.index() >= this.total());
-  readonly current = computed(() => this.suggestions()[Math.min(this.index(), this.total() - 1)]);
-  /** The next two cards peeking out below the current one. */
-  readonly upcoming = computed(() => (this.done() ? [] : this.suggestions().slice(this.index() + 1, this.index() + 3)));
+  /** The tasks without a decision, in the order of the list */
+  private readonly openTasks = computed(() => {
+    const decided = new Set(this.decisions().map((d) => d.id));
+    return this.suggestions().filter((s) => !decided.has(s.id));
+  });
+  readonly done = computed(() => this.openTasks().length === 0);
+  /** The card on top of the stack; the last task once everything is decided. */
+  readonly current = computed(() => {
+    const open = this.openTasks();
+    return open.find((s) => s.id === this.currentId()) ?? open[0] ?? this.suggestions()[this.total() - 1];
+  });
+  /**
+   * The next two cards peeking out below the current one: the open tasks
+   * after it in the list, then the ones skipped before it.
+   */
+  readonly upcoming = computed(() => {
+    if (this.done()) return [];
+    const open = this.openTasks();
+    const at = open.indexOf(this.current());
+    return [...open.slice(at + 1), ...open.slice(0, at)].slice(0, 2);
+  });
   readonly currentDraft = computed(() => this.draftOf(this.current()));
+  /** Belongs to the task: opening another one from the list leaves the edit as it is. */
+  readonly editing = computed(() => !this.done() && this.current().id in this.editBackups());
+  /** The card on top is with the AI: it waits for the new proposal and cannot be decided or edited. */
+  readonly revising = computed(() => !this.done() && this.revisingIds().has(this.current().id));
 
   /** A decided task opened from the list: shown instead of the stack, its decision stays as it is. */
   readonly viewing = computed(() => {
@@ -116,11 +154,12 @@ export class TodayStore {
   readonly queue = computed<QueueItem[]>(() => {
     const decisions = new Map(this.decisions().map((d) => [d.id, d]));
     const viewingId = this.viewingId();
+    const current = this.current();
     return this.suggestions().map((s, i) => {
       const d = decisions.get(s.id);
       let status: QueueStatus;
       if (d) status = d.verdict === 'reject' ? 'rejected' : d.edited ? 'edited' : 'approved';
-      else status = i === this.index() ? 'current' : 'waiting';
+      else status = s === current ? 'current' : 'waiting';
       return {
         id: s.id,
         position: String(i + 1).padStart(2, '0'),
@@ -180,7 +219,7 @@ export class TodayStore {
   // ---- Gesture ----
 
   canDrag(): boolean {
-    return !this.editing() && !this.leaving() && !this.done() && !this.viewing();
+    return !this.editing() && !this.revising() && !this.leaving() && !this.done() && !this.viewing();
   }
 
   beginDrag(): void {
@@ -214,13 +253,14 @@ export class TodayStore {
   }
 
   decide(verdict: Verdict): void {
-    if (this.leaving() || this.done() || this.viewing()) return;
+    if (this.leaving() || this.done() || this.viewing() || this.revising()) return;
     const suggestion = this.current();
     const draft = this.draftOf(suggestion);
     const edited = verdict === 'approve' && draft !== suggestion.draft;
 
     this.dragging.set(false);
-    this.editing.set(false);
+    this.endEdit(suggestion.id);
+    this.afterLeave = this.upcoming()[0]?.id ?? null;
     this.leaving.set(verdict);
     this.save(
       verdict === 'approve' ? this.api.approve(suggestion.id, edited ? draft : undefined) : this.api.reject(suggestion.id),
@@ -229,7 +269,7 @@ export class TodayStore {
     clearTimeout(this.leaveTimer);
     this.leaveTimer = setTimeout(() => {
       this.decisions.update((list) => [...list, { id: suggestion.id, verdict, edited }]);
-      this.index.update((i) => i + 1);
+      this.currentId.set(this.afterLeave);
       this.leaving.set(null);
       this.dx.set(0);
       this.showReason.set(false);
@@ -245,10 +285,9 @@ export class TodayStore {
     this.save(this.api.reopen(last.id));
     clearTimeout(this.toastTimer);
     this.decisions.update((list) => list.slice(0, -1));
-    this.index.update((i) => i - 1);
+    this.currentId.set(last.id);
     this.toast.set(null);
     this.dx.set(0);
-    this.editing.set(false);
     this.showReason.set(false);
     this.snap();
   }
@@ -259,7 +298,22 @@ export class TodayStore {
     this.load();
   }
 
-  // ---- Looking at a decided task ----
+  // ---- Opening a task from the list ----
+
+  /**
+   * Puts an open task on top of the stack, to decide it now; decided ones are
+   * ignored. The list keeps its order, after the decision the stack goes on
+   * with the open task below it.
+   */
+  pick(id: string): void {
+    if (!this.openTasks().some((s) => s.id === id)) return;
+    this.closeView();
+    if (id === this.current().id) return;
+    this.showReason.set(false);
+    // The card flying out stays the one it is, the picked task follows it
+    if (this.leaving()) this.afterLeave = id;
+    else this.currentId.set(id);
+  }
 
   /**
    * Opens a decided task to read; tasks without a decision are ignored.
@@ -284,10 +338,11 @@ export class TodayStore {
   // ---- Editing ----
 
   startEdit(): void {
-    if (this.leaving() || this.done() || this.viewing()) return;
-    this.draftBackup = this.currentDraft();
+    if (this.leaving() || this.done() || this.viewing() || this.editing() || this.revising()) return;
+    const id = this.current().id;
+    const backup = this.currentDraft();
     this.showReason.set(false);
-    this.editing.set(true);
+    this.editBackups.update((backups) => ({ ...backups, [id]: backup }));
   }
 
   updateDraft(value: string): void {
@@ -296,8 +351,10 @@ export class TodayStore {
   }
 
   cancelEdit(): void {
-    this.updateDraft(this.draftBackup);
-    this.editing.set(false);
+    if (!this.editing()) return;
+    const id = this.current().id;
+    this.updateDraft(this.editBackups()[id]);
+    this.endEdit(id);
   }
 
   saveEdit(): void {
@@ -306,6 +363,65 @@ export class TodayStore {
 
   toggleReason(): void {
     this.showReason.update((v) => !v);
+  }
+
+  // ---- Hints to the AI ----
+
+  hintOf(id: string): string {
+    return this.hints()[id] ?? '';
+  }
+
+  hintErrorOf(id: string): string | null {
+    return this.hintErrors()[id] ?? null;
+  }
+
+  isRevising(id: string): boolean {
+    return this.revisingIds().has(id);
+  }
+
+  /** Only a task that still waits for a decision and is not being edited by hand. */
+  canRevise(id: string): boolean {
+    return this.openTasks().some((s) => s.id === id) && !(id in this.editBackups()) && !(this.leaving() && this.current().id === id);
+  }
+
+  updateHint(id: string, value: string): void {
+    this.hints.update((hints) => ({ ...hints, [id]: value }));
+    this.hintErrors.update(({ [id]: _, ...rest }) => rest);
+  }
+
+  /**
+   * Sends the hint typed for a task to the AI, which reworks the task with it
+   * and notes in the CRM what the hint says about the customer. The task keeps
+   * its place and waits; the other tasks can be decided in the meantime.
+   */
+  revise(id: string): void {
+    const hint = this.hintOf(id).trim();
+    if (!hint || this.isRevising(id) || !this.canRevise(id)) return;
+    const loadId = this.loadId;
+    this.setRevising(id, true);
+    this.hintErrors.update(({ [id]: _, ...rest }) => rest);
+    // After the decisions on their way, but not in their queue: a new draft takes the model a while
+    this.requests
+      .then(() => firstValueFrom(this.api.revise(id, hint)))
+      .then(
+        ({ task, crmNote }) => {
+          if (loadId !== this.loadId) return;
+          this.setRevising(id, false);
+          this.suggestions.update((list) => list.map((s) => (s.id === id ? toSuggestion(task) : s)));
+          this.hints.update(({ [id]: _, ...rest }) => rest);
+          this.drafts.update(({ [id]: _, ...rest }) => rest);
+          // Mobile: back from the reasoning to the draft, which is what changed
+          if (!this.done() && this.current().id === id) this.showReason.set(false);
+          // The undo of a decision just made is worth more than the news
+          if (this.toast()?.undoable) return;
+          this.showToast({ text: crmNote ? 'Vorschlag angepasst · im CRM notiert' : 'Vorschlag angepasst', verdict: 'approve', undoable: false });
+        },
+        (err: unknown) => {
+          if (loadId !== this.loadId) return;
+          this.setRevising(id, false);
+          this.hintErrors.update((errors) => ({ ...errors, [id]: revisionError(err) }));
+        },
+      );
   }
 
   // ---- Helpers ----
@@ -317,15 +433,19 @@ export class TodayStore {
     clearTimeout(this.toastTimer);
     this.loadState.set('loading');
     this.suggestions.set([]);
-    this.index.set(0);
+    this.currentId.set(null);
+    this.afterLeave = null;
     this.decisions.set([]);
     this.drafts.set({});
+    this.editBackups.set({});
+    this.hints.set({});
+    this.hintErrors.set({});
+    this.revisingIds.set(new Set());
     this.viewingId.set(null);
     this.toast.set(null);
     this.dx.set(0);
     this.dragging.set(false);
     this.leaving.set(null);
-    this.editing.set(false);
     this.showReason.set(false);
   }
 
@@ -339,7 +459,6 @@ export class TodayStore {
         edited: task.finalDraft !== null,
       })),
     );
-    this.index.set(decided.length);
     this.drafts.set(
       Object.fromEntries(decided.flatMap((task) => (task.finalDraft === null ? [] : [[task.id, task.finalDraft]]))),
     );
@@ -362,6 +481,19 @@ export class TodayStore {
     return result;
   }
 
+  private setRevising(id: string, revising: boolean): void {
+    this.revisingIds.update((ids) => {
+      const next = new Set(ids);
+      if (revising) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  private endEdit(id: string): void {
+    this.editBackups.update(({ [id]: _, ...rest }) => rest);
+  }
+
   private draftOf(suggestion: Suggestion): string {
     return this.drafts()[suggestion.id] ?? suggestion.draft;
   }
@@ -382,6 +514,15 @@ export class TodayStore {
     clearTimeout(this.snapTimer);
     this.snapTimer = setTimeout(() => this.snapping.set(false), 50);
   }
+}
+
+/** Why a hint did not get through, in the server's words where they are meant for the user. */
+function revisionError(err: unknown): string {
+  const fallback = 'Das hat nicht geklappt. Dein Hinweis steht noch da, versuch es noch einmal.';
+  if (!(err instanceof HttpErrorResponse)) return fallback;
+  if (err.status === 0) return 'Keine Verbindung zum Server.';
+  const message = (err.error as { message?: unknown } | null)?.message;
+  return typeof message === 'string' && [409, 502, 503].includes(err.status) ? message : fallback;
 }
 
 /** Start of the local day, as the server expects it (ISO 8601 in UTC). */

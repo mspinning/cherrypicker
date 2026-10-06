@@ -26,6 +26,14 @@ export function multiline(value: unknown, max: number): string | undefined {
   return cleaned && !isPlaceholder(cleaned) ? cleaned.slice(0, max) : undefined;
 }
 
+/** A draft is shown as it is: markdown marks would stand there as asterisks. */
+export function plain(value: string | undefined): string | undefined {
+  return value
+    ?.replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
 export function list(value: unknown, maxItems: number, maxLength: number): string[] {
   return (Array.isArray(value) ? value : [])
     .map((item) => text(item, maxLength))

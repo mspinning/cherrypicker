@@ -94,6 +94,15 @@ export class MailSyncPanel {
     return state.nextSyncAt ? `${last} · wieder um ${formatTime(state.nextSyncAt)} Uhr` : last;
   }
 
+  /** What the check passes over, with the user's own numbers: the answer to "why did my mail lead to nothing?" */
+  passedOver(state: MailSyncState): string {
+    const colleagues = state.internalDomains.length ? ` (${state.internalDomains.join(', ')})` : '';
+    const count = state.messagesIgnored
+      ? ` Bisher waren das ${plural(state.messagesIgnored, 'Mail', 'Mails')}.`
+      : '';
+    return `Nicht geprüft werden Mails von dir selbst, auch von weiteren Adressen aus deinem Microsoft-Konto, Mails von Kollegen${colleagues} und automatische Absender, außerdem Junk und Entwürfe.${count}`;
+  }
+
   who(item: MailSyncItem): string {
     if (item.direction === 'out') return item.company ? `Deine Mail an ${item.company.name}` : 'Deine Mail';
     const name = item.fromName || item.fromEmail;

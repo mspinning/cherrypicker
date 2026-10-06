@@ -1,0 +1,167 @@
+@use 'mixins' as *;
+
+:host {
+  display: block;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  :host(.compact) & {
+    gap: 8px;
+  }
+}
+
+.eyebrow {
+  @include eyebrow(10.5px);
+  color: var(--ink-muted);
+
+  :host(.compact) & {
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+  }
+}
+
+.field {
+  position: relative;
+  display: flex;
+  border: 1.5px solid var(--border-button);
+  border-radius: 16px;
+  background-color: var(--surface-raised);
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: var(--lime);
+  }
+
+  &.is-busy {
+    border-color: var(--border-strong);
+  }
+}
+
+.input {
+  flex-grow: 1;
+  min-width: 0;
+  min-height: 68px;
+  max-height: 160px;
+  resize: none;
+  // Grows with a longer hint where the browser can; elsewhere the text scrolls
+  field-sizing: content;
+  // Room for the button in the corner
+  padding: 12px 54px 12px 14px;
+  border: 0;
+  border-radius: inherit;
+  background-color: transparent;
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.45;
+  // The card around the mobile panel switches selection off
+  user-select: text;
+  -webkit-user-select: text;
+
+  &::placeholder {
+    color: var(--ink-muted);
+    opacity: 0.75;
+  }
+
+  // The frame around it shows the focus
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:disabled {
+    color: var(--ink-muted);
+  }
+
+  :host(.compact) & {
+    min-height: 46px;
+    max-height: 112px;
+    // 16px prevents iOS zoom on focus
+    font-size: 16px;
+    line-height: 1.4;
+  }
+}
+
+.send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 99px;
+  background-color: var(--lime);
+  color: var(--paper-ink);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 1.5, 0.4, 1),
+    background-color 0.2s,
+    color 0.2s;
+
+  :host(.compact) & {
+    right: 5px;
+    bottom: 5px;
+    width: 36px;
+    height: 36px;
+  }
+
+  &:active:enabled {
+    transform: scale(0.92);
+  }
+
+  &:disabled {
+    background-color: var(--track);
+    color: var(--ink-muted);
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    &:hover:enabled {
+      background-color: var(--lime-hover);
+    }
+  }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  border: 2px solid var(--border-button);
+  border-top-color: var(--lime);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+
+  :host(.compact) & {
+    font-size: 12px;
+  }
+}
+
+.note--error {
+  color: var(--coral);
+}
+
+// Little room on a phone: the explanation shows once the field is in use
+:host(.compact) .note--idle {
+  display: none;
+}
+
+:host(.compact) .form:focus-within .note--idle {
+  display: block;
+}

@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
@@ -28,6 +28,9 @@ export type NewTask = Pick<
   | 'evidence'
   | 'approvalNote'
 >;
+
+/** What a revision may replace: the proposal itself, not who it is for or when it is due. */
+export type TaskRevision = Pick<Task, 'kind' | 'title' | 'subject' | 'draft' | 'summary' | 'evidence' | 'dealValue' | 'stage'>;
 
 /** The tasks assigned to one sales person and what they decided about them. */
 @Injectable()
@@ -93,6 +96,20 @@ export class TasksService implements OnApplicationBootstrap {
   /** A new open task for one sales person, e.g. from a voice call. */
   async create(assigneeId: string, task: NewTask): Promise<TaskDto> {
     return this.dto(await this.tasks.save(this.tasks.create({ ...task, assigneeId })));
+  }
+
+  /** The caller's own task, as long as it waits for their decision. */
+  async requireOpen(userId: string, id: string): Promise<Task> {
+    const task = await this.findOwn(userId, id);
+    if (task.status !== TaskStatus.Open) throw new ConflictException('Die Aufgabe ist schon entschieden');
+    return task;
+  }
+
+  /** Replaces the proposal of an open task. A decision made in the meantime stands. */
+  async revise(userId: string, id: string, revision: TaskRevision): Promise<TaskDto> {
+    const { affected } = await this.tasks.update({ id, assigneeId: userId, status: TaskStatus.Open }, revision);
+    if (!affected) throw new ConflictException('Die Aufgabe ist schon entschieden');
+    return this.dto(await this.findOwn(userId, id));
   }
 
   /** `draft` is only kept if the assignee changed the proposed text. */

@@ -20,6 +20,10 @@ export class SuggestionCard {
   readonly showReason = input(false);
   /** Mobile layout: smaller type, reasoning lives inside the card */
   readonly compact = input(false);
+  /** An open task: its reasoning takes hints to the AI */
+  readonly revisable = input(false);
+  /** The AI is reworking the task with a hint */
+  readonly revising = input(false);
   readonly approveStamp = input(0);
   readonly rejectStamp = input(0);
 

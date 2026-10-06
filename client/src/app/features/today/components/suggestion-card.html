@@ -71,12 +71,14 @@
   </div>
 
   @if (compact() && showReason()) {
-    <app-reason-panel class="reason" [suggestion]="s" [compact]="true" />
+    <app-reason-panel class="reason" [suggestion]="s" [compact]="true" [revisable]="revisable()" />
   } @else {
-    <section class="draft" [attr.aria-label]="s.draftLabel">
+    <section class="draft" [class.is-revising]="revising()" [attr.aria-label]="s.draftLabel" [attr.aria-busy]="revising()">
       <div class="draft__head eyebrow">
         <span>{{ s.draftLabel }}</span>
-        @if (editing() && !compact()) {
+        @if (revising()) {
+          <span class="draft__mode">Wird angepasst …</span>
+        } @else if (editing() && !compact()) {
           <span class="draft__mode">Bearbeiten</span>
         }
       </div>
@@ -97,6 +99,9 @@
       @if (showReason()) {
         <app-icon name="back" [size]="17" />
         Zurück zum {{ s.draftLabel }}
+      } @else if (revisable()) {
+        <app-icon name="help" [size]="17" />
+        Warum? · Cherrypick etwas mitgeben
       } @else {
         <app-icon name="help" [size]="17" />
         Warum schlägt Cherrypick das vor?

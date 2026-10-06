@@ -141,6 +141,8 @@
 
 .aside__reason {
   flex-grow: 1;
+  // Scrolls inside, so the line to the AI stays at the bottom of the panel
+  min-height: 0;
 }
 
 .aside__eyebrow {

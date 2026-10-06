@@ -41,3 +41,10 @@ export interface Task {
   finalDraft: string | null;
   decidedAt: string | null;
 }
+
+/** Answer of POST /api/tasks/:id/revise: the task reworked with a hint of its assignee */
+export interface TaskRevision {
+  task: Task;
+  /** Title of the note the hint left on the customer in the CRM; null if nothing of it belonged there */
+  crmNote: string | null;
+}

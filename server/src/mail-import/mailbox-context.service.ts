@@ -37,26 +37,25 @@ export class MailboxContext {
       this.auth.connection(userId),
       this.users.find({ select: { email: true } }),
     ]);
-    const own = new Set(
-      [
-        me.mail,
-        me.userPrincipalName,
-        connection?.email,
-        ...(me.otherMails ?? []),
-        // "SMTP:max@acme.de" (primary) and "smtp:alias@acme.de"
-        ...(me.proxyAddresses ?? []).filter((a) => /^smtp:/i.test(a)).map((a) => a.slice(5)),
-      ]
-        .map((a) => cleanAddress(a))
-        .filter((a): a is string => !!a),
-    );
+    const clean = (addresses: (string | null | undefined)[]) => addresses.map((a) => cleanAddress(a)).filter((a): a is string => !!a);
+    const mailbox = clean([
+      me.mail,
+      me.userPrincipalName,
+      connection?.email,
+      // "SMTP:max@acme.de" (primary) and "smtp:alias@acme.de"
+      ...(me.proxyAddresses ?? []).filter((a) => /^smtp:/i.test(a)).map((a) => a.slice(5)),
+    ]);
+    // Alternate addresses of the Microsoft account, often a private one: a mail from there is from the owner,
+    // but the domain may be anybody's (a family's, a former employer's) and does not make its people colleagues
+    const alternates = clean(me.otherMails ?? []);
     // Freemail domains of colleagues must not hide every gmail customer
     const internal = new Set(
-      [...own, ...users.map((u) => u.email)]
+      [...mailbox, ...users.map((u) => u.email)]
         .map((a) => registrableDomain(domainOf(a)))
         .filter((d) => d && !isFreemail(d))
         .concat(this.internalDomains),
     );
-    return { ownAddresses: own, internalDomains: internal };
+    return { ownAddresses: new Set([...mailbox, ...alternates]), internalDomains: internal };
   }
 
   async classifier(userId: string): Promise<ClassifierContext> {
