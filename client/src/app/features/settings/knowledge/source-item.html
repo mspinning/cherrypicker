@@ -17,17 +17,23 @@
   </div>
 
   <div class="meta">
-    <span class="chip">{{ categoryLabel(s.category) }}</span>
+    @if (s.type === 'post') {
+      <span class="chip">{{ published() }}</span>
+    } @else {
+      <span class="chip">{{ categoryLabel(s.category) }}</span>
+    }
     @if (s.type === 'url' && s.url !== s.title) {
       <span class="meta__url">{{ s.url }}</span>
     }
     @for (part of meta(); track part) {
       <span>{{ part }}</span>
     }
-    <span class="meta__date">{{ dateLabel() }}</span>
+    @if (dateLabel()) {
+      <span class="meta__date">{{ dateLabel() }}</span>
+    }
   </div>
 
-  @if (s.type === 'text' && s.excerpt) {
+  @if ((s.type === 'text' || s.type === 'post') && s.excerpt) {
     <p class="excerpt">{{ s.excerpt }}</p>
   }
 

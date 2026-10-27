@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CaptureInput, CrmCaptureService } from '../crm/crm-capture.service';
 import { CrmLookupService } from '../crm/crm-lookup.service';
 import { CrmRelationship } from '../crm/entities/crm-company.entity';
-import { KnowledgeSearchService } from '../knowledge/knowledge-search.service';
+import { KnowledgeSearchService, sourceLabel } from '../knowledge/knowledge-search.service';
 import { ToolSpec } from '../llm/llm.service';
 import { clamp, list, multiline, phone, record, text, uuid, website } from '../llm/tool-args';
 import { cleanAddress } from '../mail-import/addresses';
@@ -134,7 +134,7 @@ export class CallTools {
         const { hits } = await this.knowledge.search({ query, limit: KNOWLEDGE_HITS });
         return {
           treffer: hits.map((hit) => ({
-            quelle: hit.source.title,
+            quelle: sourceLabel(hit.source),
             firma: hit.company.name,
             text: hit.content.length > KNOWLEDGE_CHARS ? `${hit.content.slice(0, KNOWLEDGE_CHARS)} …` : hit.content,
           })),

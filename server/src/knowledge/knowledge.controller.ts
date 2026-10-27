@@ -25,6 +25,7 @@ import { UserRole } from '../users/user.entity';
 import { CompanyResponseDto, CreateCompanyDto, UpdateCompanyDto } from './dto/company.dto';
 import { KnowledgeSearchResponseDto, SearchKnowledgeDto } from './dto/search.dto';
 import {
+  CreatePostDto,
   CreateTextSourceDto,
   CreateUrlSourcesDto,
   CreateUrlSourcesResponseDto,
@@ -39,8 +40,8 @@ import { KnowledgeSearchService } from './knowledge-search.service';
 import { KnowledgeOverview, KnowledgeService } from './knowledge.service';
 
 /**
- * Knowledge base for agents: group companies with their texts, web pages and
- * documents. Managed by admins in the settings.
+ * Knowledge base for agents: group companies with their texts, web pages,
+ * documents and blog posts. Managed by admins in the settings.
  */
 @ApiTags('knowledge')
 @ApiBearerAuth()
@@ -116,6 +117,16 @@ export class KnowledgeController {
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<SourceResponseDto> {
     return this.knowledge.createText(id, dto, actor);
+  }
+
+  /** Blog post: dated news about the company or its products, content in Markdown */
+  @Post('companies/:id/posts')
+  createPost(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreatePostDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<SourceResponseDto> {
+    return this.knowledge.createPost(id, dto, actor);
   }
 
   /** Several URLs at once; duplicates and invalid ones are reported, not rejected. */

@@ -74,7 +74,7 @@ export class KnowledgeSettings {
   created(company: Pick<GroupCompany, 'id' | 'name' | 'description'> & Partial<GroupCompany>): void {
     this.creating.set(false);
     this.store.addCompany({
-      counts: { text: 0, url: 0, document: 0 },
+      counts: { text: 0, url: 0, document: 0, post: 0 },
       pending: 0,
       failed: 0,
       chunks: 0,
@@ -110,6 +110,7 @@ export class KnowledgeSettings {
       c.counts.text ? plural(c.counts.text, 'Text', 'Texte') : '',
       c.counts.url ? plural(c.counts.url, 'Webseite', 'Webseiten') : '',
       c.counts.document ? plural(c.counts.document, 'Dokument', 'Dokumente') : '',
+      c.counts.post ? plural(c.counts.post, 'Beitrag', 'Beiträge') : '',
     ].filter(Boolean);
     return parts.join(' · ') || 'Noch keine Quellen';
   }

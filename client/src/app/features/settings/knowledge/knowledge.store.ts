@@ -25,7 +25,7 @@ export class KnowledgeStore {
     let chunks = 0;
     let embedded = 0;
     for (const c of this.companies()) {
-      sources += c.counts.text + c.counts.url + c.counts.document;
+      sources += c.counts.text + c.counts.url + c.counts.document + c.counts.post;
       chunks += c.chunks;
       embedded += c.embeddedChunks;
     }

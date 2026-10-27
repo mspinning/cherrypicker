@@ -6,9 +6,11 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -35,6 +37,31 @@ export class CreateTextSourceDto {
   @IsEnum(KnowledgeCategory)
   category: KnowledgeCategory;
 
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_TEXT_CHARS)
+  content: string;
+}
+
+/** A calendar day: format and that the day exists (no 2026-02-30) */
+function IsDay(): PropertyDecorator {
+  return (target, key) => {
+    Matches(/^\d{4}-\d{2}-\d{2}$/, { message: `${String(key)} must be a date (YYYY-MM-DD)` })(target, key);
+    IsISO8601({ strict: true })(target, key);
+  };
+}
+
+export class CreatePostDto {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  title: string;
+
+  @IsDay()
+  publishedAt: string;
+
+  /** Markdown */
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_TEXT_CHARS)
@@ -72,12 +99,17 @@ export class UpdateSourceDto {
   @IsEnum(KnowledgeCategory)
   category?: KnowledgeCategory;
 
-  /** Text sources only; changes re-index the source */
+  /** Texts and posts only; changes re-index the source */
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_TEXT_CHARS)
   content?: string;
+
+  /** Posts only */
+  @IsOptional()
+  @IsDay()
+  publishedAt?: string;
 }
 
 export class ListSourcesQueryDto {
@@ -128,6 +160,8 @@ export class SourceResponseDto {
   mimeType: string | null;
   fileSize: number | null;
   pageCount: number | null;
+  /** Posts only, YYYY-MM-DD */
+  publishedAt: string | null;
   status: KnowledgeSourceStatus;
   error: string | null;
   chunkCount: number;
@@ -151,6 +185,7 @@ export class SourceResponseDto {
       mimeType: source.mimeType,
       fileSize: source.fileSize,
       pageCount: source.pageCount,
+      publishedAt: source.publishedAt,
       status: source.status,
       error: source.error,
       chunkCount: source.chunkCount,

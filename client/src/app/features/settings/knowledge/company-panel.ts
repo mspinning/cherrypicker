@@ -19,6 +19,7 @@ import { CompanyForm } from './company-form';
 import { DocumentSources } from './document-sources';
 import { KnowledgeStore } from './knowledge.store';
 import { errorMessage, plural } from './knowledge-format';
+import { PostSources } from './post-sources';
 import { TextSources } from './text-sources';
 import { UrlSources } from './url-sources';
 
@@ -26,13 +27,14 @@ const VIEWS: readonly { type: SourceType; label: string; icon: IconName }[] = [
   { type: 'text', label: 'Texte', icon: 'text' },
   { type: 'url', label: 'Webseiten', icon: 'link' },
   { type: 'document', label: 'Dokumente', icon: 'file' },
+  { type: 'post', label: 'Blog', icon: 'news' },
 ];
 
-/** One group company: name, description and its texts, web pages and documents. */
+/** One group company: name, description and its texts, web pages, documents and blog posts. */
 @Component({
   selector: 'app-company-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, CompanyForm, TextSources, UrlSources, DocumentSources],
+  imports: [RouterLink, Icon, CompanyForm, TextSources, UrlSources, DocumentSources, PostSources],
   templateUrl: './company-panel.html',
   styleUrl: './company-panel.scss',
 })
@@ -60,7 +62,7 @@ export class CompanyPanel {
   });
   readonly total = computed(() => {
     const c = this.company().counts;
-    return c.text + c.url + c.document;
+    return c.text + c.url + c.document + c.post;
   });
   readonly vectorShare = computed(() => {
     const c = this.company();
@@ -71,10 +73,12 @@ export class CompanyPanel {
   protected readonly plural = plural;
 
   constructor() {
-    // Opening a company with nothing but documents lands on them directly
+    // Opening a company without texts lands on the kind of source it has most of
     afterNextRender(() => {
       const c = this.company().counts;
-      if (!c.text && (c.document || c.url)) this.view.set(c.document >= c.url ? 'document' : 'url');
+      if (c.text) return;
+      const most = (['document', 'url', 'post'] as const).reduce((a, b) => (c[b] > c[a] ? b : a));
+      if (c[most]) this.view.set(most);
     });
   }
 

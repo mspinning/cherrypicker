@@ -16,7 +16,13 @@ export type SourceFilters = Pick<SourceQuery, 'category' | 'state' | 'q'>;
  * still in the pipeline, so status chips update on their own.
  * Call in an injection context (component field initializer).
  */
-export function createSourceList(type: SourceType, companyId: Signal<string>, reloadKey?: Signal<number>) {
+export function createSourceList(
+  type: SourceType,
+  companyId: Signal<string>,
+  reloadKey?: Signal<number>,
+  /** Keeps added and edited items where the server would list them; without it new ones go first */
+  order?: (a: KnowledgeSource, b: KnowledgeSource) => number,
+) {
   const api = inject(KnowledgeApi);
   const store = inject(KnowledgeStore);
 
@@ -26,6 +32,7 @@ export function createSourceList(type: SourceType, companyId: Signal<string>, re
   const loading = signal(false);
   const loadFailed = signal(false);
   const filters = signal<SourceFilters>({});
+  const sorted = (list: KnowledgeSource[]) => (order ? [...list].sort(order) : list);
 
   let request: Subscription | undefined;
   let ticks = 0;
@@ -102,11 +109,11 @@ export function createSourceList(type: SourceType, companyId: Signal<string>, re
     loadMore,
     refresh,
     replace(source: KnowledgeSource) {
-      items.update((list) => list.map((s) => (s.id === source.id ? { ...s, ...source, content: undefined } : s)));
+      items.update((list) => sorted(list.map((s) => (s.id === source.id ? { ...s, ...source, content: undefined } : s))));
     },
     prepend(sources: KnowledgeSource[]) {
       const ids = new Set(sources.map((s) => s.id));
-      items.update((list) => [...sources, ...list.filter((s) => !ids.has(s.id))]);
+      items.update((list) => sorted([...sources, ...list.filter((s) => !ids.has(s.id))]));
       total.update((n) => n + sources.length);
     },
     remove(id: string) {

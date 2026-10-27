@@ -24,7 +24,7 @@ import { Icon, IconName } from '../../../shared/icon';
 import { KnowledgeStore } from './knowledge.store';
 import { errorMessage, formatBytes, formatDate, plural, saveBlob, statusLabel } from './knowledge-format';
 
-const TYPE_ICONS: Record<KnowledgeSource['type'], IconName> = { text: 'text', url: 'link', document: 'file' };
+const TYPE_ICONS: Record<KnowledgeSource['type'], IconName> = { text: 'text', url: 'link', document: 'file', post: 'news' };
 
 /**
  * One source in a list: status, metadata and its actions. Talks to the API
@@ -87,8 +87,15 @@ export class SourceItem {
   });
   readonly dateLabel = computed(() => {
     const s = this.source();
+    // Posts show the date of the news instead, as their chip
+    if (s.type === 'post') return '';
     if (s.type === 'url') return s.processedAt ? `abgerufen ${formatDate(s.processedAt)}` : `hinzugefügt ${formatDate(s.createdAt)}`;
     return `${s.type === 'document' ? 'hochgeladen' : 'angelegt'} ${formatDate(s.createdAt)}`;
+  });
+  /** Date of a post; read as a local day, "2026-10-12" alone would be UTC midnight */
+  readonly published = computed(() => {
+    const day = this.source().publishedAt;
+    return day ? formatDate(`${day}T00:00`) : '';
   });
   readonly name = computed(() => `„${this.source().title}“`);
 

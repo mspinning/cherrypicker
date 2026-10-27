@@ -1,4 +1,4 @@
-export type SourceType = 'text' | 'url' | 'document';
+export type SourceType = 'text' | 'url' | 'document' | 'post';
 export type SourceCategory = 'service' | 'offer' | 'reference' | 'pricing' | 'company' | 'other';
 export type SourceStatus = 'queued' | 'processing' | 'embedding' | 'ready' | 'failed';
 
@@ -46,6 +46,8 @@ export interface KnowledgeSource {
   mimeType: string | null;
   fileSize: number | null;
   pageCount: number | null;
+  /** Posts only, YYYY-MM-DD */
+  publishedAt: string | null;
   status: SourceStatus;
   error: string | null;
   chunkCount: number;

@@ -11,6 +11,7 @@ import {
 } from './entities/knowledge-source.entity';
 import { FileStorageService } from './file-storage.service';
 import { chunkText, normalizeText } from './ingestion/chunker';
+import { markdownToText } from './ingestion/markdown';
 import {
   decodeText,
   ExtractedText,
@@ -27,6 +28,8 @@ const INSERT_BATCH = 500;
 const BACKOFF_MIN_MS = 30_000;
 const BACKOFF_MAX_MS = 5 * 60_000;
 const EXCERPT_CHARS = 280;
+/** Written in the CRM: their content is kept as entered, not replaced by extracted text */
+const WRITTEN = [KnowledgeSourceType.Text, KnowledgeSourceType.Post];
 
 export const CATEGORY_LABELS: Record<KnowledgeCategory, string> = {
   [KnowledgeCategory.Service]: 'Leistung',
@@ -170,7 +173,9 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
 
   private async extract(source: KnowledgeSource): Promise<ExtractedText> {
     switch (source.type) {
+      // Posts stay Markdown in their chunks: headings and lists help agents read them
       case KnowledgeSourceType.Text:
+      case KnowledgeSourceType.Post:
         return { text: normalizeText(source.content ?? '') };
 
       case KnowledgeSourceType.Document: {
@@ -214,8 +219,8 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
           // Web pages without a title of their own get the one of the page. SQL, not the
           // loaded value: the title may have been renamed while the page was fetched.
           ...(extracted.title ? { title: () => 'CASE WHEN title = url THEN :pageTitle ELSE title END' } : {}),
-          ...(source.type !== KnowledgeSourceType.Text ? { content: extracted.text } : {}),
-          excerpt: excerptOf(extracted.text),
+          ...(WRITTEN.includes(source.type) ? {} : { content: extracted.text }),
+          excerpt: excerptOfSource(source.type, extracted.text),
           charCount: extracted.text.length,
           pageCount: extracted.pageCount ?? null,
           chunkCount: chunks.length,
@@ -256,10 +261,13 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
       content: string;
       metadata: { pages?: [number, number] };
       title: string;
+      type: KnowledgeSourceType;
       category: KnowledgeCategory;
+      published: string | null;
       company: string;
     }[] = await this.dataSource.query(
-      `SELECT k.id, k.source_id, k.content, k.metadata, s.title, s.category, c.name AS company
+      `SELECT k.id, k.source_id, k.content, k.metadata, s.title, s.type, s.category,
+              to_char(s.published_at, 'DD.MM.YYYY') AS published, c.name AS company
        FROM knowledge_chunks k
        JOIN knowledge_sources s ON s.id = k.source_id
        JOIN group_companies c ON c.id = k.company_id
@@ -277,7 +285,8 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
         batch.map((row) => {
           const pages = row.metadata?.pages;
           const where = pages ? ` (Seite ${pages[0] === pages[1] ? pages[0] : `${pages[0]}–${pages[1]}`})` : '';
-          return `${row.company} · ${CATEGORY_LABELS[row.category]} · ${row.title}${where}\n\n${row.content}`;
+          const kind = row.type === KnowledgeSourceType.Post ? `News vom ${row.published}` : CATEGORY_LABELS[row.category];
+          return `${row.company} · ${kind} · ${row.title}${where}\n\n${row.content}`;
         }),
       );
     } catch (err) {
@@ -329,6 +338,11 @@ export class KnowledgeIngestionService implements OnApplicationBootstrap, OnModu
       }
     }
   }
+}
+
+/** List excerpt of a source; posts without their Markdown markup */
+export function excerptOfSource(type: KnowledgeSourceType, text: string): string {
+  return excerptOf(type === KnowledgeSourceType.Post ? markdownToText(text) : text);
 }
 
 export function excerptOf(text: string): string {

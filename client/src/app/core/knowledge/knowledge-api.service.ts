@@ -57,6 +57,10 @@ export class KnowledgeApi {
     return this.http.post<KnowledgeSource>(`${BASE}/companies/${companyId}/texts`, body);
   }
 
+  createPost(companyId: string, body: { title: string; publishedAt: string; content: string }): Observable<KnowledgeSource> {
+    return this.http.post<KnowledgeSource>(`${BASE}/companies/${companyId}/posts`, body);
+  }
+
   createUrls(companyId: string, body: { urls: string[]; category: SourceCategory }): Observable<CreateUrlsResult> {
     return this.http.post<CreateUrlsResult>(`${BASE}/companies/${companyId}/urls`, body);
   }
@@ -72,7 +76,10 @@ export class KnowledgeApi {
     });
   }
 
-  updateSource(id: string, body: { title?: string; category?: SourceCategory; content?: string }): Observable<KnowledgeSource> {
+  updateSource(
+    id: string,
+    body: { title?: string; category?: SourceCategory; content?: string; publishedAt?: string },
+  ): Observable<KnowledgeSource> {
     return this.http.patch<KnowledgeSource>(`${BASE}/sources/${id}`, body);
   }
 

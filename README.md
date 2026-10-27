@@ -64,13 +64,14 @@ Client ──► NestJS ──► Keycloak (Realm "crm", Client "crm-backend")
 
 ## Wissensquellen
 
-Unter `/settings/knowledge` pflegen Admins, was die Firmen der Gruppe anbieten. Später lesen Agenten dort nach, welche Firma welche Leistung hat und was in früheren Angeboten stand.
+Unter `/settings/knowledge` pflegen Admins, was die Firmen der Gruppe anbieten. Später lesen Agenten dort nach, welche Firma welche Leistung hat, was in früheren Angeboten stand und was es Neues gibt.
 
 - **Firmen der Gruppe** (`group_companies`) mit Name und Kurzbeschreibung. Die Beschreibung hilft Agenten später, die richtige Firma zu wählen.
-- Pro Firma gibt es drei Arten von **Quellen** (`knowledge_sources`), jeweils mit einer Kategorie (Leistung, Angebot, Referenz, Preise, Unternehmen, Sonstiges):
+- Pro Firma gibt es vier Arten von **Quellen** (`knowledge_sources`). Texte, Webseiten und Dokumente haben jeweils eine Kategorie (Leistung, Angebot, Referenz, Preise, Unternehmen, Sonstiges):
   - **Texte:** direkt im CRM geschrieben, bis 200.000 Zeichen.
   - **Webseiten:** URLs, mehrere auf einmal möglich. Der Server ruft sie im Hintergrund ab und liest den Hauptinhalt (ohne Navigation und Footer). Er liest nur die angegebene Seite, Unterseiten nicht. „Neu abrufen“ holt den aktuellen Stand.
   - **Dokumente:** PDF, Word (`.docx`), Text, Markdown, CSV und HTML bis `KNOWLEDGE_MAX_UPLOAD_MB` (Standard 50 MB) je Datei. Der Client lädt einzeln hoch, drei parallel, auch ganze Ordner. Dieselbe Datei (SHA-256) nimmt der Server pro Firma nur einmal an. Die Originale liegen im Volume `server-storage`.
+  - **Blog:** Neuigkeiten zur Firma und ihren Produkten, je mit Datum, Titel und Text in Markdown (bis 200.000 Zeichen, mit Vorschau im Editor). Die Liste zeigt die neuesten zuerst, sortiert nach dem Datum der Nachricht. Agenten bekommen Treffer daraus als „News vom TT.MM.JJJJ: Titel“, damit sie einschätzen können, wie aktuell eine Nachricht ist. In den Abschnitten bleibt das Markdown erhalten.
 
 ### Verarbeitung
 
@@ -84,7 +85,7 @@ queued ──► processing ──► embedding ──► ready
 
 - Die Warteschlange ist die Tabelle selbst (`status = queued`, `FOR UPDATE SKIP LOCKED`). Ein Neustart verliert also nichts.
 - **Abschnitte** (`knowledge_chunks`) sind etwa 1.400 Zeichen lang und überlappen sich um 200 Zeichen. Getrennt wird bevorzugt an Absätzen und Satzenden. Bei PDFs merkt sich jeder Abschnitt seine Seiten (`metadata.pages`).
-- Vektorisiert wird jeder Abschnitt mit einem kurzen Kopf (`Firma · Kategorie · Titel (Seite n)`), damit der Vektor den Kontext kennt.
+- Vektorisiert wird jeder Abschnitt mit einem kurzen Kopf (`Firma · Kategorie · Titel (Seite n)`, bei Blog-Beiträgen `Firma · News vom TT.MM.JJJJ · Titel`), damit der Vektor den Kontext kennt. Ändern sich Titel, Kategorie oder Datum, werden die Vektoren neu berechnet.
 - Indexe: HNSW (`vector_cosine_ops`) für die Vektorsuche und GIN auf `to_tsvector('german', content)` für die Stichwortsuche. TypeORM kann beide nicht deklarieren, deshalb legt der Server sie beim Start selbst an.
 - **Solange keine Vektoren entstehen können**, sind Texte trotzdem gespeichert und per Stichwort auffindbar. Die Einstellungen zeigen dann den Grund. Sobald Bifrost antwortet, holt der Server die Vektoren von selbst nach.
 - Gescannte PDFs ohne Textebene landen in `failed`. OCR gibt es noch nicht.
@@ -106,7 +107,7 @@ Wechselt das Modell, verwirft der Server beim Start die alten Vektoren und berec
 
 ### Suche für Agenten
 
-`KnowledgeSearchService.search()` (exportiert vom `KnowledgeModule`, per HTTP unter `POST /api/knowledge/search`) kombiniert Vektorsuche und deutsche Volltextsuche per Reciprocal Rank Fusion. Filtern lässt sich nach Firmen (`companyIds`) und Kategorien (`categories`). Jeder Treffer enthält den Abschnitt, die Quelle (Titel, URL oder Dateiname, Seiten) und die Firma. Ohne Embedding-Modell läuft die Stichwortsuche allein (`semantic: false`).
+`KnowledgeSearchService.search()` (exportiert vom `KnowledgeModule`, per HTTP unter `POST /api/knowledge/search`) kombiniert Vektorsuche und deutsche Volltextsuche per Reciprocal Rank Fusion. Filtern lässt sich nach Firmen (`companyIds`) und Kategorien (`categories`). Jeder Treffer enthält den Abschnitt, die Quelle (Titel, URL oder Dateiname, Seiten, bei Blog-Beiträgen das Datum `publishedAt`) und die Firma. Ohne Embedding-Modell läuft die Stichwortsuche allein (`semantic: false`).
 
 ```bash
 curl -X POST localhost:3000/api/knowledge/search -H "Authorization: Bearer <accessToken>" -H 'Content-Type: application/json' \
@@ -235,7 +236,7 @@ Die Karten auf „Heute“ sind Zeilen der Tabelle `tasks`. Jede Aufgabe gehört
 ### Ablauf
 
 1. **Sprechen:** Der Browser nimmt über das Mikrofon auf und erkennt selbst, wann jemand spricht und wann er fertig ist (Lautstärke gegen das Grundrauschen, 1,3 Sekunden Pause beenden einen Beitrag; ein Tipp auf Cherry beendet ihn sofort). Jeder Beitrag geht als WAV (16 kHz, mono) an `POST /api/voice/calls/:id/turns`. Gespeichert wird nur der Text, nie die Aufnahme.
-2. **Verstehen:** Der Server lässt die Aufnahme von einem Modell transkribieren, das Audio versteht (`VOICE_STT_MODEL`). Als Schreibhilfe bekommt es die Namen der eigenen Firmen, die Produktnamen aus den Titeln der Wissensquellen und die Kunden, die im Anruf schon gefunden wurden.
+2. **Verstehen:** Der Server lässt die Aufnahme von einem Modell transkribieren, das Audio versteht (`VOICE_STT_MODEL`). Als Schreibhilfe bekommt es die Namen der eigenen Firmen, die Produktnamen aus den Titeln der Texte und Webseiten in den Wissensquellen und die Kunden, die im Anruf schon gefunden wurden.
 3. **Antworten:** Der Agent (`VOICE_AGENT_MODEL`, sonst `LLM_MODEL`) schaut im CRM nach, ob es Firma und Person schon gibt (`kunden_suchen`, findet per `pg_trgm` auch „Kessler“ für „Kässler & Söhne GmbH“), kann die Wissensbasis befragen (`wissen_suchen`) und antwortet in ein bis zwei Sätzen. Die Antwort liest der Browser mit der Stimme des Geräts vor (Web Speech API). Während des Anrufs wird nichts gespeichert, Korrekturen („nein, Bäcker mit ä“) kosten also nichts.
 4. **Auflegen:** Mit dem roten Knopf, oder Cherry legt auf, wenn man sich verabschiedet. Erst jetzt schreibt der Agent: `kunde_speichern` legt Firma und Ansprechpartner an oder ergänzt sie (vorhandene Angaben werden nie überschrieben) und hängt eine Notiz zum Gespräch an, `aufgabe_anlegen` erzeugt je nächstem Schritt eine Aufgabe mit fertigem Entwurf für den Anrufer. Die Aufgaben erscheinen unter „Heute“ und werden dort wie alle anderen freigegeben oder verworfen. Der Bildschirm zeigt die Schritte live und danach, was entstanden ist. Wer nicht warten will, lässt es im Hintergrund fertig werden. Auch ein geschlossener Tab zählt als Auflegen.
 

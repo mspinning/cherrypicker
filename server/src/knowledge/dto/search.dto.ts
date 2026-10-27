@@ -54,6 +54,8 @@ export class KnowledgeHitDto {
     title: string;
     url: string | null;
     fileName: string | null;
+    /** Posts only, YYYY-MM-DD */
+    publishedAt: string | null;
   };
   company: { id: string; name: string };
 }

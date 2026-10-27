@@ -10,7 +10,7 @@ import { CrmContact } from '../crm/entities/crm-contact.entity';
 import { CrmNote } from '../crm/entities/crm-note.entity';
 import { GraphClient } from '../integrations/microsoft/graph-client.service';
 import { GroupCompany } from '../knowledge/entities/group-company.entity';
-import { KnowledgeSearchService } from '../knowledge/knowledge-search.service';
+import { KnowledgeSearchService, sourceLabel } from '../knowledge/knowledge-search.service';
 import { LlmAnswerError, LlmError, LlmService, ToolSpec } from '../llm/llm.service';
 import { list, multiline, plain, record, text } from '../llm/tool-args';
 import { cleanMailText } from '../mail-import/mail-text';
@@ -263,7 +263,7 @@ export class TaskRevisionService {
       );
       const hits = new Map(searches.flatMap(({ hits }) => hits).map((hit) => [hit.chunkId, hit]));
       return [...hits.values()].map((hit) => ({
-        source: hit.source.title,
+        source: sourceLabel(hit.source),
         company: hit.company.name,
         text: hit.content.length > KNOWLEDGE_CHARS ? `${hit.content.slice(0, KNOWLEDGE_CHARS)} …` : hit.content,
       }));

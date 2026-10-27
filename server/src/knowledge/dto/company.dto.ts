@@ -25,6 +25,7 @@ export interface SourceCounts {
   text: number;
   url: number;
   document: number;
+  post: number;
 }
 
 export class CompanyResponseDto {
@@ -52,7 +53,7 @@ export class CompanyResponseDto {
       description: company.description,
       createdAt: company.createdAt,
       updatedAt: company.updatedAt,
-      counts: stats?.counts ?? { text: 0, url: 0, document: 0 },
+      counts: stats?.counts ?? { text: 0, url: 0, document: 0, post: 0 },
       pending: stats?.pending ?? 0,
       failed: stats?.failed ?? 0,
       chunks: stats?.chunks ?? 0,

@@ -18,6 +18,8 @@ export enum KnowledgeSourceType {
   Url = 'url',
   /** An uploaded file (past offers, presentations, …) */
   Document = 'document',
+  /** Blog post: dated news about the company or its products, written in Markdown */
+  Post = 'post',
 }
 
 /** What the source is about, so agents can tell a past offer from a service description. */
@@ -69,9 +71,13 @@ export class KnowledgeSource {
   @Column({ length: 300 })
   title: string;
 
-  /** Text sources: as written. Web pages and documents: the extracted text. */
+  /** Texts and posts: as written. Web pages and documents: the extracted text. */
   @Column({ type: 'text', nullable: true, select: false })
   content: string | null;
+
+  /** Posts only: the day the news is from, as YYYY-MM-DD */
+  @Column({ name: 'published_at', type: 'date', nullable: true })
+  publishedAt: string | null;
 
   /** Start of the text for list views, so they never load the full content */
   @Column({ type: 'varchar', length: 400, default: '' })

@@ -10,7 +10,7 @@ import { CrmNote } from '../crm/entities/crm-note.entity';
 import { CrmPartyDecision, PartyDecider } from '../crm/entities/crm-party-decision.entity';
 import { parseDisplayName } from '../crm/people';
 import { GraphAddress, GraphClient, GraphMessage } from '../integrations/microsoft/graph-client.service';
-import { KnowledgeSearchService } from '../knowledge/knowledge-search.service';
+import { KnowledgeSearchService, sourceLabel } from '../knowledge/knowledge-search.service';
 import { LlmAnswerError } from '../llm/llm.service';
 import { cleanAddress, domainOf, isAutomatedAddress, isKnownService, registrableDomain } from '../mail-import/addresses';
 import { MailAggregator, MailGroup, partyOf, ScanContext } from '../mail-import/mail-aggregator';
@@ -465,7 +465,7 @@ export class MailboxCheck {
     try {
       const { hits } = await this.knowledge.search({ query: query.slice(0, 1000), limit: KNOWLEDGE_HITS });
       return hits.map((hit) => ({
-        source: hit.source.title,
+        source: sourceLabel(hit.source),
         company: hit.company.name,
         text: hit.content.length > KNOWLEDGE_CHARS ? `${hit.content.slice(0, KNOWLEDGE_CHARS)} …` : hit.content,
       }));

@@ -152,7 +152,7 @@ export class VoiceService {
    */
   private async ownNames(): Promise<string[]> {
     const titles = await this.dataSource.query<{ title: string }[]>(
-      `SELECT title FROM knowledge_sources WHERE type <> 'document' ORDER BY created_at DESC LIMIT 200`,
+      `SELECT title FROM knowledge_sources WHERE type IN ('text', 'url') ORDER BY created_at DESC LIMIT 200`,
     );
     const products = titles
       .map(({ title }) => title.split(/\s+[|–—:-]\s+|:\s+/)[0].trim())

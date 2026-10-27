@@ -18,6 +18,7 @@ interface HitRow {
   title: string;
   url: string | null;
   file_name: string | null;
+  published_at: string | null;
   company_id: string;
   company_name: string;
   score: number;
@@ -82,6 +83,7 @@ export class KnowledgeSearchService {
          )
          SELECT k.id AS chunk_id, k.content, k.metadata,
                 s.id AS source_id, s.type, s.category, s.title, s.url, s.file_name,
+                to_char(s.published_at, 'YYYY-MM-DD') AS published_at,
                 c.id AS company_id, c.name AS company_name,
                 COALESCE(1.0 / (${RRF_K} + sem.rank), 0) + COALESCE(1.0 / (${RRF_K} + kw.rank), 0) AS score,
                 sem.rank IS NOT NULL AS by_semantic,
@@ -101,6 +103,13 @@ export class KnowledgeSearchService {
   }
 }
 
+/** How agents see where a hit comes from; news carry their date, it decides whether they are still current. */
+export function sourceLabel(source: KnowledgeHitDto['source']): string {
+  if (source.type !== KnowledgeSourceType.Post || !source.publishedAt) return source.title;
+  const [year, month, day] = source.publishedAt.split('-');
+  return `News vom ${day}.${month}.${year}: ${source.title}`;
+}
+
 function toHit(row: HitRow): KnowledgeHitDto {
   return {
     chunkId: row.chunk_id,
@@ -115,6 +124,7 @@ function toHit(row: HitRow): KnowledgeHitDto {
       title: row.title,
       url: row.url,
       fileName: row.file_name,
+      publishedAt: row.published_at,
     },
     company: { id: row.company_id, name: row.company_name },
   };

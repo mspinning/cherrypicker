@@ -44,7 +44,8 @@ export type IconName =
   | 'volume-off'
   | 'keyboard'
   | 'hangup'
-  | 'note';
+  | 'note'
+  | 'news';
 
 /** Inline stroke icons (24px grid, currentColor). */
 @Component({
@@ -231,6 +232,10 @@ export type IconName =
         @case ('note') {
           <svg:path d="M5 4.5h14v10l-5 5H5z" />
           <svg:path d="M19 14.5h-5v5M8.5 9h7M8.5 12.5h4" />
+        }
+        @case ('news') {
+          <svg:path d="M5 5.5h11v12.5a2 2 0 0 0 2 2H7a2 2 0 0 1-2-2z" />
+          <svg:path d="M16 9.5h3v8.5a2 2 0 0 1-4 0M8.5 9h4M8.5 12.5h4M8.5 16h4" />
         }
         @case ('users') {
           <svg:circle cx="9" cy="8.5" r="3.5" />

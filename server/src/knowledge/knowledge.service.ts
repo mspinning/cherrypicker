@@ -13,6 +13,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user';
 import { UsersService } from '../users/users.service';
 import { CompanyResponseDto, CreateCompanyDto, UpdateCompanyDto } from './dto/company.dto';
 import {
+  CreatePostDto,
   CreateTextSourceDto,
   CreateUrlSourcesDto,
   CreateUrlSourcesResponseDto,
@@ -32,7 +33,7 @@ import {
 import { FileStorageService } from './file-storage.service';
 import { formatOf } from './ingestion/text-extractor';
 import { normalizeUrl } from './ingestion/web-fetcher';
-import { excerptOf, KnowledgeIngestionService } from './knowledge-ingestion.service';
+import { excerptOf, excerptOfSource, KnowledgeIngestionService } from './knowledge-ingestion.service';
 
 /** `code` values of 409 answers, for clients that react specifically. */
 export const KNOWLEDGE_ERRORS = {
@@ -48,7 +49,7 @@ export interface KnowledgeOverview {
   embedding: EmbeddingState & { pendingChunks: number };
 }
 
-/** Group companies and their knowledge sources (texts, web pages, documents). */
+/** Group companies and their knowledge sources (texts, web pages, documents, blog posts). */
 @Injectable()
 export class KnowledgeService {
   private readonly logger = new Logger(KnowledgeService.name);
@@ -135,10 +136,15 @@ export class KnowledgeService {
     const qb = this.sources
       .createQueryBuilder('s')
       .where('s.company_id = :companyId', { companyId })
-      .orderBy('s.created_at', 'DESC')
-      .addOrderBy('s.id', 'DESC')
       .skip(query.offset ?? 0)
       .take(query.limit ?? 50);
+    // The blog lists the newest news first, by the date of the news
+    if (query.type === KnowledgeSourceType.Post) {
+      qb.orderBy('s.published_at', 'DESC', 'NULLS LAST').addOrderBy('s.created_at', 'DESC');
+    } else {
+      qb.orderBy('s.created_at', 'DESC');
+    }
+    qb.addOrderBy('s.id', 'DESC');
 
     if (query.type) qb.andWhere('s.type = :type', { type: query.type });
     if (query.category) qb.andWhere('s.category = :category', { category: query.category });
@@ -172,6 +178,26 @@ export class KnowledgeService {
         title: dto.title,
         content: dto.content,
         excerpt: excerptOf(dto.content),
+        charCount: dto.content.length,
+        createdById: await this.actorId(actor),
+      }),
+    );
+    this.ingestion.kick();
+    return SourceResponseDto.from(source);
+  }
+
+  async createPost(companyId: string, dto: CreatePostDto, actor: AuthenticatedUser): Promise<SourceResponseDto> {
+    await this.findCompany(companyId);
+    const source = await this.sources.save(
+      this.sources.create({
+        companyId,
+        type: KnowledgeSourceType.Post,
+        // Posts have no category of their own; agents tell them apart by type and date
+        category: KnowledgeCategory.Other,
+        title: dto.title,
+        publishedAt: dto.publishedAt,
+        content: dto.content,
+        excerpt: excerptOfSource(KnowledgeSourceType.Post, dto.content),
         charCount: dto.content.length,
         createdById: await this.actorId(actor),
       }),
@@ -288,20 +314,26 @@ export class KnowledgeService {
 
   async updateSource(id: string, dto: UpdateSourceDto): Promise<SourceResponseDto> {
     const source = await this.findSource(id, true);
-    if (dto.content !== undefined && source.type !== KnowledgeSourceType.Text) {
-      throw new BadRequestException('Nur bei eigenen Texten lässt sich der Inhalt ändern');
+    const written = [KnowledgeSourceType.Text, KnowledgeSourceType.Post].includes(source.type);
+    if (dto.content !== undefined && !written) {
+      throw new BadRequestException('Nur bei eigenen Texten und Blog-Beiträgen lässt sich der Inhalt ändern');
+    }
+    if (dto.publishedAt !== undefined && source.type !== KnowledgeSourceType.Post) {
+      throw new BadRequestException('Ein Datum haben nur Blog-Beiträge');
     }
 
     const contentChanged = dto.content !== undefined && dto.content !== source.content;
-    // Title and category are part of every embedded chunk
+    // Title, category and the date of a post are part of every embedded chunk
     const contextChanged =
       (dto.title !== undefined && dto.title !== source.title) ||
-      (dto.category !== undefined && dto.category !== source.category);
+      (dto.category !== undefined && dto.category !== source.category) ||
+      (dto.publishedAt !== undefined && dto.publishedAt !== source.publishedAt);
     source.title = dto.title ?? source.title;
     source.category = dto.category ?? source.category;
+    source.publishedAt = dto.publishedAt ?? source.publishedAt;
     if (contentChanged) {
       source.content = dto.content!;
-      source.excerpt = excerptOf(dto.content!);
+      source.excerpt = excerptOfSource(source.type, dto.content!);
       source.charCount = dto.content!.length;
       source.status = KnowledgeSourceStatus.Queued;
       source.error = null;

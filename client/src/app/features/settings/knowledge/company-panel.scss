@@ -152,7 +152,7 @@
   }
 }
 
-// Texte | Webseiten | Dokumente
+// Texte | Webseiten | Dokumente | Blog
 .views {
   display: flex;
   gap: 4px;
@@ -163,8 +163,9 @@
 }
 
 .view {
-  flex: 1;
-  min-width: 0;
+  // Equal widths where they fit; a longer label takes the room it needs instead of being cut
+  flex: 1 1 0;
+  min-width: max-content;
   height: 48px;
   display: inline-flex;
   align-items: center;
@@ -194,13 +195,13 @@
     }
   }
 
-  // Phones: labels carry the meaning, so icon and count badge give way
-  @media (max-width: 420px) {
-    // Widths follow the labels, "Dokumente" needs more room than "Texte"
+  // Narrow screens: labels carry the meaning, so icon and count badge give way
+  @media (max-width: 700px) {
+    // Widths follow the labels, "Dokumente" needs more room than "Blog"
     flex: 1 1 auto;
+    min-width: 0;
     gap: 5px;
     padding: 0 6px;
-    font-size: 13.5px;
 
     app-icon {
       display: none;
@@ -212,6 +213,15 @@
       border: 0;
       background: none;
       color: var(--ink-muted);
+    }
+  }
+
+  // Phones: four labels only just fit; the company list shows the counts
+  @media (max-width: 480px) {
+    font-size: 13.5px;
+
+    .view__count {
+      display: none;
     }
   }
 }
